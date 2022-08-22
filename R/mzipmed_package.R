@@ -186,7 +186,7 @@ mzip = function(y,pred,print=F){
 #' @param confounder is a vector of confounder variables. If no confounder variables are needed then confounder is set to NULL. If more than 1 confounder is being considered then use the cbind function, e.g. cbind(var1,var2)
 #' @param X is the theoretical value for the exposure variable to be set at. The default is to 1
 #' @param Xstar is the theoretical value for the exposure variable to be compared to X. The default is 0, so direct, indirect, and proportion mediated values will be for a 1 unit increase in the exposure variable.
-#' @param n is the number of repitition if bootstrapped errors are used
+#' @param n is the number of repetition if bootstrapped errors are used
 #' @param C is a vector for theoretical values of each confounder. By default each each value of C will be the mean value of each confounder.
 #' @param error ='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method
 #' @return The function will return a list of 12 elements.
@@ -729,7 +729,7 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
 #'     logRRNIEse is the standard error for  the indirect effect log risk ratio \cr
 #'     RRNIEci is the 95% confidence interval for the indirect effect risk ratio \cr
 #'     RRTE is the total effect risk ratio \cr
-#'     logRRTEse is the stanadrd error for the total effect log risk ratio\cr
+#'     logRRTEse is the standard error for the total effect log risk ratio\cr
 #'     RRTECI is the confidence interval for the total effect risk ratio \cr
 #'     PM is the proportion mediated
 #' @examples
