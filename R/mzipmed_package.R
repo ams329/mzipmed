@@ -940,7 +940,7 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
 #' @param confounder is a vector of confounder variables. If no confounder variables are needed then confounder is set to NULL. If more than 1 confounder is being considered then use the cbind function, e.g. cbind(var1,var2)
 #' @param X is the theoretical value for the exposure variable to be set at. The default is to 1
 #' @param Xstar is the theoretical value for the exposure variable to be compared to X. The default is 0, so direct, indirect, and proportion mediated values will be for a 1 unit increase in the exposure variable.
-#' @param n is the number of repititions for bootstrapping. Default is 1000. Setting n when using delta method errors will have no effect on output.
+#' @param n is the number of repetitions for bootstrapping. Default is 1000. Setting n when using delta method errors will have no effect on output.
 #' @param C is a vector for theoretical values of each confounder. If left out the default will be set to the mean of each confounder giving marginal effects
 #' @param M is a fixed value for the mediator, M. If M is not specified, M will be set to its mean value 
 #' @param error ='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method
