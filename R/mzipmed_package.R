@@ -177,7 +177,7 @@ mzip = function(y,pred,print=F){
 #'
 #' This function incorporates the MZIP model into the counterfactual approach to mediation analysis
 #' as proposed by Vanderweele when the mediator is a Zero-Inflated count variable. Standard Errors for
-#' direct and indirect effects are computed using delta method or boostrapping. Note: This function
+#' direct and indirect effects are computed using delta method or bootstrapping. Note: This function
 #' assumes that the outcome is continuous and all exposure, mediator, outcome, and confounder variables
 #' have the same sample size. Binary variables must be dummy coded prior.
 #' @param outcome is the continuous outcome variable
@@ -199,7 +199,7 @@ mzip = function(y,pred,print=F){
 #'     NIEse is the standard error for  the indirect effect \cr
 #'     NIEci is the 95% confidence interval for the indirect effect \cr
 #'     TE is the total effect \cr
-#'     TEse is the stanadrd error for the total effect \cr
+#'     TEse is the standard error for the total effect \cr
 #'     TECI is the confidence interval for the total effect \cr
 #'     PM is the proportion mediated
 #' @examples
@@ -363,7 +363,7 @@ lmoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,
 #' @param confounder is a vector of confounder variables. If no confounder variables are needed then confounder is set to NULL. If more than 1 confounder is being considered then use the cbind function, e.g. cbind(var1,var2)
 #' @param X is the theoretical value for the exposure variable to be set at. The default is to 1
 #' @param Xstar is the theoretical value for the exposure variable to be compared to X. The default is 0, so direct, indirect, and proportion mediated values will be for a 1 unit increase in the exposure variable.
-#' @param n is the number of repititions for bootstrapping. Default is 1000. Setting n when using delta method errors will have no effect on output.
+#' @param n is the number of repetitions for bootstrapping. Default is 1000. Setting n when using delta method errors will have no effect on output.
 #' @param C is a vector for theoretical values of each confounder. If left out the default will be set to the mean of each confounder giving marginal effects
 #' @param M is a fixed value for the mediator, M. If M is not specified, M will be set to its mean value 
 #' @param error ='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method
@@ -704,7 +704,7 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
 #' This function incorporates the MZIP model into the counterfactual approach to mediation analysis
 #' as proposed by Vanderweele when the mediator is a Zero-Inflated count variable for cases with
 #' binary or count outcome using a Poisson regression with robust standard errors. Standard Errors for
-#' direct and indirect effects are computed using delta method or boostrapping. Note: This function
+#' direct and indirect effects are computed using delta method or bootstrapping. Note: This function
 #' assumes that the outcome is continuous and all exposure, mediator, outcome, and confounder variables
 #' have the same sample size. Binary variables must be dummy coded prior.
 #' A Poisson regression with robust standard errors were used to obtain direct and indirect
@@ -716,7 +716,7 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
 #' @param confounder is a vector of confounder variables. If no confounder variables are needed then confounder is set to NULL. If more than 1 confounder is being considered then use the cbind function, e.g. cbind(var1,var2)
 #' @param X is the theoretical value for the exposure variable to be set at. The default is to 1
 #' @param Xstar is the theoretical value for the exposure variable to be compared to X. The default is 0, so direct, indirect, and proportion mediated values will be for a 1 unit increase in the exposure variable.
-#' @param n is the number of repitition if bootstrapped errors are used. Default is 1000
+#' @param n is the number of repetition if bootstrapped errors are used. Default is 1000
 #' @param C is a vector for theoretical values of each confounder. By default each each value of C will be the mean value of each confounder.
 #' @param error ='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method
 #' @return The function will return a list of 12 elements.
