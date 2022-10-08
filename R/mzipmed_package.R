@@ -769,14 +769,14 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
   #Indirect effect
   if (is.null(confounder)){
     RRIE=((1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))*(exp(medreg$Gest[1]+medreg$Gest[2]*X)+
-                                                          exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*X+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp(outreg$coefficients[[3]])-1))))/
+                                                          exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp(outreg$coefficients[[3]])-1))))/
       ((1+exp(medreg$Gest[1]+medreg$Gest[2]*X))*(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)+
-                                                   exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]])-1))))
+                                                   exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]])-1))))
   } else{
     RRIE=((1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))*(exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))+
-                                                                                          exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]])-1))))/
+                                                                                          exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]])-1))))/
       ((1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))*(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))+
-                                                                                   exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]])-1))))
+                                                                                   exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]])-1))))
   }
   #Proportion Mediated
   RRTE=RRIE*RRDE
@@ -790,23 +790,23 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
       GamDE=c(0,0,0,0,0,X-Xstar,0)
       P=exp(medreg$Gest[1]+medreg$Gest[2]*X)
       S=exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)
-      V=exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*X+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp(outreg$coefficients[[3]])-1))
-      W=exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]])-1))
+      V=exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp(outreg$coefficients[[3]])-1))
+      W=exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]])-1))
       H=P+V
       J=S+W
       
-      r1=(1/(1+S))-(1/(1+P))+((P-(exp(outreg$coefficients[[3]])-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H)-
-        ((S-(exp(outreg$coefficients[[3]])-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J)
-      r2=Xstar*((1/(1+S))-((S-(exp(outreg$coefficients[[3]])-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J))+
-        X*(-(1/(1+P))+((P-(exp(outreg$coefficients[[3]])-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H))
-      a1=-(((exp(outreg$coefficients[[3]])-1)*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X))/H)+
+      r1=(S/(1+S))-(P/(1+P))+((P+(exp(outreg$coefficients[[3]])-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H)-
+        ((S+(exp(outreg$coefficients[[3]])-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J)
+      r2=Xstar*((S/(1+S))-((S+(exp(outreg$coefficients[[3]])-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J))+
+        X*(-(P/(1+P))+((P+(exp(outreg$coefficients[[3]])-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H))
+      a1=(((exp(outreg$coefficients[[3]])-1)*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X))/H)-
         (((exp(outreg$coefficients[[3]])-1)*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/J)
-      a2=-X*(((exp(outreg$coefficients[[3]])-1)*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X))/H)+
+      a2=X*(((exp(outreg$coefficients[[3]])-1)*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X))/H)-
         Xstar*(((exp(outreg$coefficients[[3]])-1)*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/J)
       t1=0
       t2=0
-      t3=-(((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]))/H)
-      +(((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]))/J)
+      t3=(((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]))/H)
+      -(((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]))/J)
       
       
       GamIE=c(r1,r2,a1,a2,t1,t2,t3)
@@ -816,25 +816,25 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
       
       P=exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))
       S=exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))
-      V=exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]])-1))
-      W=exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]])-1))
+      V=exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]])-1))
+      W=exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]])-1))
       H=P+V
       J=S+W
       
-      r1=(1/(1+S))-(1/(1+P))+((P-(exp(outreg$coefficients[[3]])-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H)-
-        ((S-(exp(outreg$coefficients[[3]])-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J)
-      r2=Xstar*((1/(1+S))-((S-(exp(outreg$coefficients[[3]])-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J))+
-        X*(-(1/(1+P))+((P-(exp(outreg$coefficients[[3]])-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H))
+      r1=(S/(1+S))-(P/(1+P))+((P+(exp(outreg$coefficients[[3]])-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H)-
+        ((S+(exp(outreg$coefficients[[3]])-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J)
+      r2=Xstar*((S/(1+S))-((S+(exp(outreg$coefficients[[3]])-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J))+
+        X*(-(P/(1+P))+((P+(exp(outreg$coefficients[[3]])-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H))
       r3=C*r1
-      a1=-(((exp(outreg$coefficients[[3]])-1)*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))/H)+
+      a1=(((exp(outreg$coefficients[[3]])-1)*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))/H)-
         (((exp(outreg$coefficients[[3]])-1)*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/J)
-      a2=-X*(((exp(outreg$coefficients[[3]])-1)*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))/H)+
+      a2=X*(((exp(outreg$coefficients[[3]])-1)*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))/H)-
         Xstar*(((exp(outreg$coefficients[[3]])-1)*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/J)
       a3=C*a1
       t1=0
       t2=0
-      t3=-(((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]))/H)+
-        +(((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]))/J)
+      t3=(((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]))/H)+
+        -(((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]))/J)
       t4=C*0
       
       
@@ -929,7 +929,6 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
 }
 
 
-
 #' Mediation Analysis for Zero-Inflated Count Mediators using MZIP with Exposure-Mediator Interactions (Binary/Count Outcome)
 #'
 #' This function will do the same thing as the binoutzimed function, but includes an exposure-mediator interaction.
@@ -1021,27 +1020,27 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
   #Natural Direct Effect
   if (is.null(confounder)){
     RRNDE=((exp(outreg$coefficients[[2]]*X))*(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)+
-                                                exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))))/
+                                                exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))))/
       ((exp(outreg$coefficients[[2]]*Xstar))*(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)+
-                                                exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))))
+                                                exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))))
   } else{
     RRNDE=((exp(outreg$coefficients[[2]]*X))*(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))+
-                                                exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))))/
+                                                exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))))/
       ((exp(outreg$coefficients[[2]]*Xstar))*(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))+
-                                                exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))))
+                                                exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))))
   }
   
   #Indirect Effect
   if (is.null(confounder)){
     RRIE=((1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))*(exp(medreg$Gest[1]+medreg$Gest[2]*X)+
-                                                          exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*X+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))))/
+                                                          exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))))/
       ((1+exp(medreg$Gest[1]+medreg$Gest[2]*X))*(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)+
-                                                   exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))))
+                                                   exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))))
   } else{
     RRIE=((1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))*(exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))+
-                                                                                          exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))))/
+                                                                                          exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))))/
       ((1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))*(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))+
-                                                                                   exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))))
+                                                                                   exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))))
   }
   
   
@@ -1049,14 +1048,14 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
   #Pure Indirect Effect
   if (is.null(confounder)){
     RRPIE=((1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))*(exp(medreg$Gest[1]+medreg$Gest[2]*X)+
-                                                           exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*X+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))))/
+                                                           exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))))/
       ((1+exp(medreg$Gest[1]+medreg$Gest[2]*X))*(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)+
-                                                   exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))))
+                                                   exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))))
   } else{
     RRPIE=((1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))*(exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))+
-                                                                                           exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))))/
+                                                                                           exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))))/
       ((1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))*(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))+
-                                                                                   exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))))
+                                                                                   exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))))
   }
   
   
@@ -1065,7 +1064,7 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
   
   #kappa
   kappa=(exp(outreg$coefficients[[3]]*M+outreg$coefficients[[4]]*Xstar*M)*(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/
-    ((exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))+exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)))
+    ((exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))+exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)))
   
   
   #Total Effect
@@ -1099,122 +1098,122 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
       GamCDE=c(0,0,0,0,0,1,M,0)
       
       Q=(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)+
-           exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)))
+           exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)))
       R=(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)+
-           exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)))
+           exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)))
       B=exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)
       D=Q-B
       G=R-B
       
-      dr1=((B-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*D*B*
-              exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/Q)-((B-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*G*B*
+      dr1=((B+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*D*B*
+              exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/Q)-((B+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*G*B*
                                                                exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/R)
       dr2=dr1*Xstar
-      da1=((-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*D*(B+1)*
-              exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/Q)+
+      da1=(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*D*(B+1)*
+              exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/Q)-
         (((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*G*(B+1)*
             exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/R)
       da2=da1*Xstar
       dt1=0
       dt2=X-Xstar
-      dt3=((-(B+1)*D*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/Q)+
+      dt3=(((B+1)*D*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/Q)-
         (((B+1)*G*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/R)
-      dt4=((-X*(B+1)*D*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/Q)+
+      dt4=((X*(B+1)*D*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/Q)-
         ((Xstar*(B+1)*G*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/R)
       GamNDE=c(dr1,dr2,da1,da2,dt1,dt2,dt3,dt4)
       
       
       P=exp(medreg$Gest[1]+medreg$Gest[2]*X)
       S=exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)
-      V=exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*X+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))
-      W=exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))
+      V=exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))
+      W=exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))
       H=P+V
       J=S+W
       
-      nr1=(1/(1+S))-(1/(1+P))+((P-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H)-
-        ((S-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J)
-      nr2=Xstar*((1/(1+S))-((S-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J))+
-        X*(-(1/(1+P))+((P-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H))
-      na1=-(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X))/H)+
+      nr1=(S/(1+S))-(P/(1+P))+((P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H)-
+        ((S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J)
+      nr2=Xstar*((S/(1+S))-((S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J))+
+        X*(-(P/(1+P))+((P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H))
+      na1=(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X))/H)-
         (((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/J)
-      na2=-X*(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X))/H)+
+      na2=X*(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X))/H)-
         Xstar*(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/J)
       nt1=0
       nt2=0
-      nt3=-(((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/H)
-      +(((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/J)
+      nt3=(((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/H)
+      -(((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/J)
       nt4=X*nt3
       
       GamIE=c(nr1,nr2,na1,na2,nt1,nt2,nt3,nt4)
       
-      V2=exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*X+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))
-      W2=exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))
+      V2=exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))
+      W2=exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))
       H2=P+V2
       J2=S+W2
       
-      pr1=(1/(1+S))-(1/(1+P))+((P-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H2)-
-        ((S-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J2)
-      pr2=Xstar*((1/(1+S))-((S-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J2))+
-        X*(-(1/(1+P))+((P-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H2))
-      pa1=-(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X))/H2)+
+      pr1=(S/(1+S))-(P/(1+P))+((P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H2)-
+        ((S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J2)
+      pr2=Xstar*((S/(1+S))-((S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J2))+
+        X*(-(P/(1+P))+((P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H2))
+      pa1=(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X))/H2)-
         (((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/J2)
-      pa2=-X*(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X))/H2)+
+      pa2=X*(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X))/H2)-
         Xstar*(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/J2)
       pt1=0
       pt2=0
-      pt3=-(((P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/H2)+
-        +(((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/J2)
+      pt3=(((P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/H2)+
+        -(((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/J2)
       pt4=Xstar*pt3
       
       GamPIE=c(pr1,pr2,pa1,pa2,pt1,pt2,pt3,pt4)
       
       Z=exp((X-Xstar)*outreg$coefficients[[2]]-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
       
-      mr1=((-Z*H*P)/((1+P)^2))+(Z*(P-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*P*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+P)+
-        ((Z*J*S)/((1+S)^2))-(Z*(S-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*S*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar)))/(1+S)+
-        ((exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2*P)/((1+P)^2))-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*P*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+P)+
-        ((-exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))+(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*S*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+P)
-      mr2=((-X*Z*H*P)/((1+P)^2))+(Z*X*(P-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*P*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+P)+
-        ((Xstar*Z*J*S)/((1+S)^2))-(Z*Xstar*(S-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*S*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar)))/(1+S)+
-        ((X*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2*P)/((1+P)^2))-(X*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*P*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+P)+
-        ((-Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))+(Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*S*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+P)
-      ma1=(Z/(1+P))*(-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X))-
-        (Z/(1+S))*(-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))-
-        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*(-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X))+
-        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*(-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
-      ma2= (X*Z/(1+P))*(-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X))-
-        (Xstar*Z/(1+S))*(-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))-
-        (X*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*(-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X))+
-        (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*(-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
+      mr1=((-Z*H*P)/((1+P)^2))+(Z*(P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*P*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+P)+
+        ((Z*J*S)/((1+S)^2))-(Z*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*S*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar)))/(1+S)+
+        ((exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2*P)/((1+P)^2))-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*P*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+P)+
+        ((-exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))+(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*S*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+S)
+      mr2=((-X*Z*H*P)/((1+P)^2))+(Z*X*(P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*P*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+P)+
+        ((Xstar*Z*J*S)/((1+S)^2))-(Z*Xstar*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*S*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar)))/(1+S)+
+        ((X*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2*P)/((1+P)^2))-(X*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*P*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+P)+
+        ((-Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))+(Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*S*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+S)
+      ma1=(Z/(1+P))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X))-
+        (Z/(1+S))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))-
+        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X))+
+        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
+      ma2= (X*Z/(1+P))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X))-
+        (Xstar*Z/(1+S))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))-
+        (X*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X))+
+        (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
       mt1=0
       mt2=((X-Xstar)*Z*H/(1+P))-((X-Xstar)*Z*J/(1+S))
       mt3=-M*((Z*H)/(1+P)-(Z*J)/(1+S)-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2)/(1+P)+(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2)/(1+S))+
-        (Z/(1+P))*(-(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
-        (Z/(1+S))*(-(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
-        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*(-(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))+
-        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*(-(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
+        (Z/(1+P))*((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
+        (Z/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
+        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))+
+        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
       mt4=-M*Xstar*((Z*H)/(1+P)-(Z*J)/(1+S)-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2)/(1+P)+(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2)/(1+S))+
-        (Z*X/(1+P))*(-(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
-        (Z*X/(1+S))*(-(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
-        (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*(-(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))+
-        (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*(-(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
+        (Z*X/(1+P))*((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
+        (Z*X/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
+        (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))+
+        (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
       
       GamIntmed=c(mr1,mr2,ma1,ma2,mt1,mt2,mt3,mt4)
       
-      rr1=(-(Z*J*S)/((1+S)^2))+(Z*(S-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*S*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar)))/(1+S)+
-        ((exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*S*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+P)
+      rr1=(-(Z*J*S)/((1+S)^2))+(Z*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*S*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar)))/(1+S)+
+        ((exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*S*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+S)
       rr2=Xstar*rr1
-      ra1=(Z/(1+S))*(-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))-
-        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*(-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
+      ra1=(Z/(1+S))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))-
+        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
       ra2=Xstar*ra1
       rt1=0
       rt2=(Xstar*Z*J/(1+S))-(X-Xstar)*RRCDE
       rt3=-M*((Z*J)/(1+S)-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2)/(1+S))+
-        (Z/(1+S))*(-(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
-        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*(-(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
+        (Z/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
+        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
       rt4=-M*Xstar*((Z*J)/(1+S)-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2)/(1+S))+
-        (Z*X/(1+S))*(-(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
-        (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*(-(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
+        (Z*X/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
+        (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
       -M*(X-Xstar)*RRCDE
       
       GamIntref=c(rr1,rr2,ra1,ra2,rt1,rt2,rt3,rt4)
@@ -1224,79 +1223,79 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
       GamCDE=c(0,0,0*C,0,0,0*C,0,1,0,M,0*C)
       
       Q=(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))+
-           exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)))
+           exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)))
       R=(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))+
-           exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)))
+           exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)))
       B=exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))
       D=Q-B
       G=R-B
       
-      dr1=((B-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*D*B*
-              exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/Q)-((B-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*G*B*
+      dr1=((B+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*D*B*
+              exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/Q)-((B+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*G*B*
                                                                                                exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/R)
       dr2=dr1*Xstar
       dr3=dr1*C
-      da1=((-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*D*(B+1)*
-              exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/Q)+
+      da1=(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*D*(B+1)*
+              exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/Q)-
         (((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*G*(B+1)*
             exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/R)
       da2=da1*Xstar
       da3=da1*C
       dt1=0
       dt2=X-Xstar
-      dt3=((-(B+1)*D*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/Q)+
+      dt3=(((B+1)*D*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/Q)-
         (((B+1)*G*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/R)
-      dt4=((-X*(B+1)*D*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/Q)+
+      dt4=((X*(B+1)*D*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/Q)-
         ((Xstar*(B+1)*G*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/R)
       dt5=C*0
       GamNDE=c(dr1,dr2,dr3,da1,da2,da3,dt1,dt2,dt3,dt4,dt5)
       
       P=exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))
       S=exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))
-      V=exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))
-      W=exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))
+      V=exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))
+      W=exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))
       H=P+V
       J=S+W
       
-      nr1=(1/(1+S))-(1/(1+P))+((P-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H)-
-        ((S-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J)
-      nr2=Xstar*((1/(1+S))-((S-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J))+
-        X*(-(1/(1+P))+((P-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H))
+      nr1=(S/(1+S))-(P/(1+P))+((P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H)-
+        ((S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J)
+      nr2=Xstar*((S/(1+S))-((S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J))+
+        X*(-(P/(1+P))+((P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H))
       nr3=C*nr1
-      na1=-(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))/H)+
+      na1=(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))/H)-
         (((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/J)
-      na2=-X*(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))/H)+
+      na2=X*(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))/H)-
         Xstar*(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/J)
       na3=C*na1
       nt1=0
       nt2=0
-      nt3=-(((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/H)
-      +(((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/J)
+      nt3=(((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/H)
+      -(((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/J)
       nt4=X*nt3
       nt5=C*0
       
       
       GamIE=c(nr1,nr2,nr3,na1,na2,na3,nt1,nt2,nt3,nt4,nt5)
       
-      V2=exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))
-      W2=exp(-(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))
+      V2=exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))
+      W2=exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))
       H2=P+V2
       J2=S+W2
       
-      pr1=(1/(1+S))-(1/(1+P))+((P-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H2)-
-        ((S-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J2)
-      pr2=Xstar*((1/(1+S))-((S-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J2))+
-        X*(-(1/(1+P))+((P-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H2))
+      pr1=(S/(1+S))-(P/(1+P))+((P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H2)-
+        ((S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J2)
+      pr2=Xstar*((S/(1+S))-((S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J2))+
+        X*(-(P/(1+P))+((P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H2))
       pr3=C*pr1
-      pa1=-(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))/H2)+
+      pa1=(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))/H2)-
         (((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/J2)
-      pa2=-X*(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))/H2)+
+      pa2=X*(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))/H2)-
         Xstar*(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/J2)
       pa3=C*pa1
       pt1=0
       pt2=0
-      pt3=-(((P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/H2)
-      +(((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/J2)
+      pt3=(((P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/H2)
+      -(((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/J2)
       pt4=Xstar*pt3
       pt5=C*0
       
@@ -1304,56 +1303,56 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
       
       Z=exp((X-Xstar)*outreg$coefficients[[2]]-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
       
-      mr1=((-Z*H*P)/((1+P)^2))+(Z*(P-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*P*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+P)+
-        ((Z*J*S)/((1+S)^2))-(Z*(S-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*S*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+S)+
-        ((exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2*P)/((1+P)^2))-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*P*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+P)-
-        ((-exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))+(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*S*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+P)
-      mr2=((-X*Z*H*P)/((1+P)^2))+(Z*X*(P-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*P*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+P)+
-        ((Xstar*Z*J*S)/((1+S)^2))-(Z*Xstar*(S-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*S*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+S)+
-        ((X*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2*P)/((1+P)^2))-(X*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*P*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+P)-
-        ((-Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))+(Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*S*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+P)
+      mr1=((-Z*H*P)/((1+P)^2))+(Z*(P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*P*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+P)+
+        ((Z*J*S)/((1+S)^2))-(Z*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*S*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+S)+
+        ((exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2*P)/((1+P)^2))-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*P*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+P)-
+        ((-exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))+(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*S*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+S)
+      mr2=((-X*Z*H*P)/((1+P)^2))+(Z*X*(P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*P*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+P)+
+        ((Xstar*Z*J*S)/((1+S)^2))-(Z*Xstar*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*S*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+S)+
+        ((X*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2*P)/((1+P)^2))-(X*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*P*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+P)-
+        ((-Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))+(Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*S*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+S)
       mr3=mr1*C
-      ma1=(Z/(1+P))*(-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))-
-        (Z/(1+S))*(-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))-
-        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*(-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))+
-        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*(-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))
-      ma2= (X*Z/(1+P))*(-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))-
-        (Xstar*Z/(1+S))*(-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))-
-        (X*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*(-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))+
-        (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*(-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))
+      ma1=(Z/(1+P))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))-
+        (Z/(1+S))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))-
+        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))+
+        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))
+      ma2= (X*Z/(1+P))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))-
+        (Xstar*Z/(1+S))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))-
+        (X*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))+
+        (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))
       ma3=ma1*C
       mt1=0
       mt2=((X-Xstar)*Z*H/(1+P))-((X-Xstar)*Z*J/(1+S))
       mt3=-M*((Z*H)/(1+P)-(Z*J)/(1+S)-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2)/(1+P)+(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2)/(1+S))+
-        (Z/(1+P))*(-(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
-        (Z/(1+S))*(-(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
-        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*(-(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))+
-        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*(-(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
+        (Z/(1+P))*((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
+        (Z/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
+        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))+
+        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
       mt4=-M*Xstar*((Z*H)/(1+P)-(Z*J)/(1+S)-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2)/(1+P)+(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2)/(1+S))+
-        (Z*X/(1+P))*(-(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
-        (Z*X/(1+S))*(-(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
-        (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*(-(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))+
-        (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*(-(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
+        (Z*X/(1+P))*((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
+        (Z*X/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
+        (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))+
+        (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
       mt5=0*C
       
       GamIntmed=c(mr1,mr2,mr3,ma1,ma2,ma3,mt1,mt2,mt3,mt4,mt5)
       
-      rr1=(-(Z*J*S)/((1+S)^2))+(Z*(S-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*S*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+S)+
-        ((exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*S*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+P)
+      rr1=(-(Z*J*S)/((1+S)^2))+(Z*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*S*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+S)+
+        ((exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*S*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+S)
       rr2=Xstar*rr1
       rr3=C*rr1
-      ra1=(Z/(1+S))*(-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))-
-        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*(-(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))
+      ra1=(Z/(1+S))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))-
+        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))
       ra2=Xstar*ra1
       ra3=C*ra1
       rt1=0
       rt2=(Xstar*Z*J/(1+S))-(X-Xstar)*RRCDE
       rt3=-M*((Z*J)/(1+S)-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2)/(1+S))+
-        (Z/(1+S))*(-(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
-        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*(-(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
+        (Z/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
+        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
       rt4=-M*Xstar*((Z*J)/(1+S)-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2)/(1+S))+
-        (Z*X/(1+S))*(-(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
-        (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*(-(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
+        (Z*X/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
+        (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
       -M*(X-Xstar)*RRCDE
       rt5=C*0
       
