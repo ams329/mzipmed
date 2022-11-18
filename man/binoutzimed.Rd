@@ -27,7 +27,7 @@ binoutzimed(
 
 \item{C}{is a vector for theoretical values of each confounder. By default each each value of C will be the mean value of each confounder.}
 
-\item{n}{is the number of repitition if bootstrapped errors are used. Default is 1000}
+\item{n}{is the number of repetition if bootstrapped errors are used. Default is 1000}
 
 \item{X}{is the theoretical value for the exposure variable to be set at. The default is to 1}
 
@@ -46,7 +46,7 @@ RRNDEci is the 95\% confidence interval for the direct effect risk ratio\cr
 logRRNIEse is the standard error for  the indirect effect log risk ratio \cr
 RRNIEci is the 95\% confidence interval for the indirect effect risk ratio \cr
 RRTE is the total effect risk ratio \cr
-logRRTEse is the stanadrd error for the total effect log risk ratio\cr
+logRRTEse is the standard error for the total effect log risk ratio\cr
 RRTECI is the confidence interval for the total effect risk ratio \cr
 PM is the proportion mediated
 }
@@ -54,7 +54,7 @@ PM is the proportion mediated
 This function incorporates the MZIP model into the counterfactual approach to mediation analysis
 as proposed by Vanderweele when the mediator is a Zero-Inflated count variable for cases with
 binary or count outcome using a Poisson regression with robust standard errors. Standard Errors for
-direct and indirect effects are computed using delta method or boostrapping. Note: This function
+direct and indirect effects are computed using delta method or bootstrapping. Note: This function
 assumes that the outcome is continuous and all exposure, mediator, outcome, and confounder variables
 have the same sample size. Binary variables must be dummy coded prior.
 A Poisson regression with robust standard errors were used to obtain direct and indirect

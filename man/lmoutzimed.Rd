@@ -27,7 +27,7 @@ lmoutzimed(
 
 \item{C}{is a vector for theoretical values of each confounder. By default each each value of C will be the mean value of each confounder.}
 
-\item{n}{is the number of repitition if bootstrapped errors are used}
+\item{n}{is the number of repetition if bootstrapped errors are used}
 
 \item{X}{is the theoretical value for the exposure variable to be set at. The default is to 1}
 
@@ -46,14 +46,14 @@ NDEci is the 95\% confidence interval for the direct effect\cr
 NIEse is the standard error for  the indirect effect \cr
 NIEci is the 95\% confidence interval for the indirect effect \cr
 TE is the total effect \cr
-TEse is the stanadrd error for the total effect \cr
+TEse is the standard error for the total effect \cr
 TECI is the confidence interval for the total effect \cr
 PM is the proportion mediated
 }
 \description{
 This function incorporates the MZIP model into the counterfactual approach to mediation analysis
 as proposed by Vanderweele when the mediator is a Zero-Inflated count variable. Standard Errors for
-direct and indirect effects are computed using delta method or boostrapping. Note: This function
+direct and indirect effects are computed using delta method or bootstrapping. Note: This function
 assumes that the outcome is continuous and all exposure, mediator, outcome, and confounder variables
 have the same sample size. Binary variables must be dummy coded prior.
 }

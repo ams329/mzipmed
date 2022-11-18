@@ -41,23 +41,23 @@
 
 
 mzip = function(y,pred,print=F){
-  
+
   intercept=rep(1,length(y))
   Z=cbind(intercept,pred)
   X=Z
-  
-  
+
+
   like = function(theta) {
-    
-    
-    
-    
+
+
+
+
     zg = Z%*%c(theta[1:dim(Z)[2]])
     z0g = Z[y==0,]%*%c(theta[1:dim(Z)[2]])
     x0a = X[y==0,]%*%c(theta[(1+dim(Z)[2]):(dim(Z)[2]+dim(X)[2])])
     z1g = Z[y>0,]%*%c(theta[1:dim(Z)[2]])
     x1a = X[y>0,]%*%c(theta[(1+dim(Z)[2]):(dim(Z)[2]+dim(X)[2])])
-    
+
     #log likelihood
     bill=-1*sum(log(1+exp(zg)))+
       sum(log(exp(z0g)+exp(-(1+exp(z0g))*exp(x0a))))+
@@ -65,80 +65,80 @@ mzip = function(y,pred,print=F){
       sum(y[y>0]*log(1+exp(z1g)))+
       sum(x1a*y[y>0])-
       sum(lgamma(y[y>0]+1))
-    
+
     return(-bill)
   }
-  
+
   estimates=stats::optim(rep(0,dim(Z)[2]+dim(X)[2]), like,hessian=T,method="BFGS")
-  
+
   gamma_hat = estimates$par[1:dim(Z)[2]]
   alpha_hat = estimates$par[(1+dim(Z)[2]):(dim(Z)[2]+dim(X)[2])]
-  
+
   z_gamma_hat 	= Z%*%gamma_hat # n x 1 vector
   x_alpha_hat 	= X%*%alpha_hat # n x 1 vector*/
-  
+
   outcome=y
-  
+
   psi_hat = exp(z_gamma_hat)/(1+exp(z_gamma_hat)) #n x 1 vector
   nu_hat = exp(x_alpha_hat) #n x 1 vector
   psi_hat2 = 1/(1-psi_hat)
-  
-  diag_gg	= (psi_hat^2*(1-psi_hat)*(psi_hat*psi_hat2*nu_hat+1)*(exp(nu_hat*psi_hat2)-nu_hat*(psi_hat2)-1))/(psi_hat*exp(nu_hat*psi_hat2)+(1-psi_hat))
-  
-  diag_aa = (nu_hat*(psi_hat*(exp(nu_hat*psi_hat2)-nu_hat*psi_hat2-1)+1))/(psi_hat*exp(nu_hat*psi_hat2)+(1-psi_hat))
-  
-  diag_ga = nu_hat*psi_hat*(1-exp(-nu_hat*psi_hat2)+(-(1+nu_hat*psi_hat*psi_hat2+nu_hat*(psi_hat*psi_hat2)^2+exp(-nu_hat*psi_hat2))/((psi_hat*psi_hat2)*exp(nu_hat*psi_hat2)+1)))
-  
-  #test for error
-  dd_gg=diag(as.vector(diag_gg))
-  dd_aa=diag(as.vector(diag_aa))
-  
-  tx_dd_gg=t(Z)%*%diag(as.vector(diag_gg))
-  dd_gg_x=diag(as.vector(diag_gg))%*%(Z)
-  
-  I_gg			= t(Z)%*%diag(as.vector(diag_gg))%*%(Z)
-  I_aa			= t(X)%*%diag(as.vector(diag_aa))%*%(X)
-  I_ga			= t(X)%*%diag(as.vector(diag_ga))%*%(Z)
-  I_ag			= t(I_ga)
-  
+
+  # diag_gg	= (psi_hat^2*(1-psi_hat)*(psi_hat*psi_hat2*nu_hat+1)*(exp(nu_hat*psi_hat2)-nu_hat*(psi_hat2)-1))/(psi_hat*exp(nu_hat*psi_hat2)+(1-psi_hat))
+  #
+  # diag_aa = (nu_hat*(psi_hat*(exp(nu_hat*psi_hat2)-nu_hat*psi_hat2-1)+1))/(psi_hat*exp(nu_hat*psi_hat2)+(1-psi_hat))
+  #
+  # diag_ga = nu_hat*psi_hat*(1-exp(-nu_hat*psi_hat2)+(-(1+nu_hat*psi_hat*psi_hat2+nu_hat*(psi_hat*psi_hat2)^2+exp(-nu_hat*psi_hat2))/((psi_hat*psi_hat2)*exp(nu_hat*psi_hat2)+1)))
+  #
+  # #test for error
+  # dd_gg=diag(as.vector(diag_gg))
+  # dd_aa=diag(as.vector(diag_aa))
+  #
+  # tx_dd_gg=t(Z)%*%diag(as.vector(diag_gg))
+  # dd_gg_x=diag(as.vector(diag_gg))%*%(Z)
+  #
+  # I_gg			= t(Z)%*%diag(as.vector(diag_gg))%*%(Z)
+  # I_aa			= t(X)%*%diag(as.vector(diag_aa))%*%(X)
+  # I_ga			= t(X)%*%diag(as.vector(diag_ga))%*%(Z)
+  # I_ag			= t(I_ga)
+  #
   Inform=estimates$hessian
   Inv_inform		= MASS::ginv(Inform)
   w=nrow(Inv_inform)/2+1
   k=nrow(Inv_inform)
   aCov=Inv_inform[w:k,w:k]
-  
+
   M1 = matrix(0,nrow=dim(Z)[2]+dim(X)[2],ncol=dim(Z)[2]+dim(X)[2])
   score_g = matrix(0,nrow=dim(Z)[2],ncol=1)
   score_a = matrix(0,nrow=dim(X)[2],ncol=1)
-  
+
   for(qq in 1:dim(Z)[1]){
-    
+
     y = outcome[qq]
     ph= psi_hat[qq]
     ph2=psi_hat2[qq]
     nu=nu_hat[qq]
-    
+
     score_g = ((y==0)*(ph*ph2*(exp(nu*ph2)-nu))/(ph*ph2*exp(nu*ph2)+1)+ph*(y - 1) - (y>0)*ph*ph2*nu)%*%t(Z[qq,])
-    
+
     score_a = ((y-nu*ph2)*(y>0) - (y==0)*(nu*ph2)/(ph*ph2*exp(nu*ph2)+1))%*%t(X[qq,])
-    
+
     score = cbind(score_g,score_a)
-    
+
     M1 = M1 + t(score)%*%(score)
-    
+
   }
-  
+
   robust = Inv_inform%*%M1%*%Inv_inform
-  
+
   m_se			= sqrt(diag(Inv_inform))
-  
+
   r_se			= sqrt(diag(robust))
-  
+
   mupper = c(gamma_hat,alpha_hat) + 1.96*m_se
   mlower = c(gamma_hat,alpha_hat) - 1.96*m_se
   rupper = c(gamma_hat,alpha_hat) + 1.96*r_se
   rlower = c(gamma_hat,alpha_hat) - 1.96*r_se
-  
+
   GWald=(gamma_hat/m_se[1:dim(Z)[2]])^2
   GPval=ifelse(1-stats::pchisq(q=(gamma_hat/m_se[1:dim(Z)[2]])^2,df=1)<.0001,"<.0001",round(1-pchisq(q=(gamma_hat/m_se[1:dim(Z)[2]])^2,df=1),digits=5))
   GRobWald=(gamma_hat/r_se[1:dim(Z)[2]])^2
@@ -147,10 +147,10 @@ mzip = function(y,pred,print=F){
   APval=ifelse(1-stats::pchisq(q=(alpha_hat/m_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])])^2,df=1)<.0001,"<.0001",round(1-pchisq(q=(alpha_hat/m_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])])^2,df=1),digits=5))
   ARobWald=(alpha_hat/r_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])])^2
   ARobPval=ifelse(1-stats::pchisq(q=(alpha_hat/r_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])])^2,df=1)<.0001,"<.0001",round(1-pchisq(q=(alpha_hat/r_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])])^2,df=1),digits=5))
-  
-  
+
+
   if(print){cat("Gamma Estimates:",gamma_hat,'\n',"Alpha estimates:",alpha_hat,'\n',"M SE: ", m_se,'\n',"R SE:",r_se,'\n',"Gamma P-Value",GPval,'\n',"R Gamma P-Val",GRobPval,'\n',"Alpha P-Val",APval,'\n',"R Alpha P-Val",ARobPval,'\n')}
-  
+
   output = list( Gest = gamma_hat,Aest = alpha_hat, GModelSE = m_se[1:dim(Z)[2]], GRobustSE = r_se[1:dim(Z)[2]],
                  AModelSE = m_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])], ARobustSE = r_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])],
                  GModelUpper = mupper[1:dim(Z)[2]], AModelUpper = mupper[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])],
@@ -165,7 +165,7 @@ mzip = function(y,pred,print=F){
                  AModelZpval = 2*(1-stats::pnorm(abs(alpha_hat/m_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])]))),
                  ARobustZpval = 2*(1-stats::pnorm(abs(alpha_hat/r_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])]))),
                  AlphaCov=aCov,Cov=Inv_inform)
-  
+
   return(output)
 }
 
@@ -212,7 +212,7 @@ mzip = function(y,pred,print=F){
 
 lmoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,Xstar=0,error='Delta'){
   lmout=data.frame(outcome)
-  
+
   if (is.null(confounder)){
     lmpred=data.frame(exposure,mediator)
     medreg=mzip(y=mediator,pred=exposure,print=F)
@@ -223,22 +223,22 @@ lmoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,
   #as.formula and lm part of stats package
   lmdata=data.frame(lmout,lmpred)
   f<-stats::as.formula(paste(colnames(lmout),paste(colnames(lmpred),collapse="+"),sep="~"))
-  
+
   m=ncol(lmdata)-1
   r=ncol(lmdata)
   outreg=stats::lm(f,data=lmdata)
-  
+
   if (!is.null(confounder)){
     if (is.null(C)){
       confounder=cbind(confounder)
       C=colMeans(confounder)
     }
   }
-  
+
   #Direct Effect
   DE=outreg$coefficients[[2]]*(X-Xstar)
-  
-  
+
+
   if (is.null(confounder)){
     IE=outreg$coefficients[[3]]*(exp(medreg$Aest[1]+medreg$Aest[2]*X)-exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
   } else{
@@ -247,9 +247,9 @@ lmoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,
   #Proportion Mediated
   PM=IE/(IE+DE)
   TE=IE+DE
-  
+
   if (error=='Delta'){
-    
+
     if (is.null(confounder)){
       GamDE=c(0,0,0,1,0)
       d1=outreg$coefficients[[3]]*(exp(medreg$Aest[1]+medreg$Aest[2]*X)-exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
@@ -259,7 +259,7 @@ lmoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,
       d6=(exp(medreg$Aest[1]+medreg$Aest[2]*X)-exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
       GamIE=c(d1,d2,d4,d5,d6)
     } else {
-      
+
       GamDE=c(0,0,0*C,0,1,0,0*C)
       d1=outreg$coefficients[[3]]*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))-exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))
       d2=outreg$coefficients[[3]]*(X*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))-Xstar*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))
@@ -270,41 +270,41 @@ lmoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,
       d7=C*0
       GamIE=c(d1,d2,d3,d4,d5,d6,d7)
     }
-    
+
     GamTE=GamIE+GamDE
     #Extract Covariance matrices
     MZIPCov=medreg$AlphaCov
     lmCov=stats::vcov(outreg) #uses stats package
-    
+
     nlm=nrow(lmCov)
     nMZI=nrow(MZIPCov)
     Topright=matrix(0,nMZI,nlm)
     Botmleft=matrix(0,nlm,nMZI)
-    
+
     Top=cbind(MZIPCov,Topright)
     Btm=cbind(Botmleft,lmCov)
-    
+
     CovM=rbind(Top,Btm)
-    
+
     #Standard Errors
     DEse=sqrt(GamDE %*% CovM %*% GamDE)*abs(X-Xstar)
     IEse=sqrt(GamIE %*% CovM %*% GamIE)*abs(X-Xstar)
     TEse=sqrt(GamTE %*% CovM %*% GamTE)*abs(X-Xstar)
-    
+
     #Confidence Intervals
     LDEci=DE-1.96*DEse
     UDEci=DE+1.96*DEse
     DECI=c(LDEci,UDEci)
-    
+
     LIEci=IE-1.96*IEse
     UIEci=IE+1.96*IEse
     IECI=c(LIEci,UIEci)
-    
+
     LTEci=TE-1.96*TEse
     UTEci=TE+1.96*TEse
     TECI=c(LTEci,UTEci)
-  } 
-  
+  }
+
   if (error=='Boot'){
     datab=list()
     datab2=list()
@@ -331,21 +331,21 @@ lmoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,
       # PMb[[i]]=IEb[[i]]/(IEb[[i]]+DEb[[i]])
       TEb[[i]]=IEb[[i]]+DEb[[i]]
     }
-    
+
     #matrixStats and stats
     #Direct Effect
     DEse=matrixStats::colSds(do.call(rbind,DEb))
     DECI=stats::quantile(do.call(rbind,DEb),c(0.025,.975))
-    
+
     #Indirect Effect #Did not include the 1-0 here
-    
+
     IEse=matrixStats::colSds(do.call(rbind,IEb))
     IECI=stats::quantile(do.call(rbind,IEb),c(0.025,.975))
     #Proportion Mediated
     TEse=matrixStats::colSds(do.call(rbind,TEb))
     TECI=stats::quantile(do.call(rbind,TEb),c(0.025,0.975))
   }
-  
+
   output=list(lm=outreg,mzip=medreg,NDE=DE,NIE=IE,NDEse=DEse,NIEse=IEse,NDEci=DECI,NIEci=IECI,
               TE=TE,TEse=TEse,TEci=TECI,PM=PM)
 }
@@ -365,7 +365,7 @@ lmoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,
 #' @param Xstar is the theoretical value for the exposure variable to be compared to X. The default is 0, so direct, indirect, and proportion mediated values will be for a 1 unit increase in the exposure variable.
 #' @param n is the number of repetitions for bootstrapping. Default is 1000. Setting n when using delta method errors will have no effect on output.
 #' @param C is a vector for theoretical values of each confounder. If left out the default will be set to the mean of each confounder giving marginal effects
-#' @param M is a fixed value for the mediator, M. If M is not specified, M will be set to its mean value 
+#' @param M is a fixed value for the mediator, M. If M is not specified, M will be set to its mean value
 #' @param error ='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method
 #' @return The function will return a list of 30 elements.
 #'     LM is the results of regressing the mediator+exposure+confounder on the outcome using a linear model. To assess interaction effect individually look in the lm statement at the 4th parameter estimate \cr
@@ -405,7 +405,7 @@ lmoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,
 
 
 lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,Xstar=0,M=NULL,error='Delta'){
-  
+
   interaction=mediator*exposure
   lmout=data.frame(outcome)
   if (is.null(confounder)){
@@ -415,14 +415,14 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
     lmpred=data.frame(exposure,mediator,interaction,confounder)
     medreg=mzip(y=mediator,pred=cbind(exposure,confounder),print=F)
   }
-  
+
   lmdata=data.frame(lmout,lmpred)
   f<-stats::as.formula(paste(colnames(lmout),paste(colnames(lmpred),collapse="+"),sep="~"))
-  
+
   k=ncol(lmdata)-2
   r=ncol(lmdata)
   outreg=stats::lm(f,data=lmdata)
-  
+
   if (!is.null(confounder)){
     if (is.null(C)){
       confounder=cbind(confounder)
@@ -432,56 +432,56 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
   if (is.null(M)){
     M=mean(mediator)
   }
-  
-  
+
+
   #Controlled Direct Effect
   CDE=(outreg$coefficients[[2]]+outreg$coefficients[[4]]*M)*(X-Xstar)
-  
-  
+
+
   #Natural Direct Effect
   NDE=outreg$coefficients[[2]]*(X-Xstar)+outreg$coefficients[[4]]*(X-Xstar)*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg$Aest[c(3:k)]*C))
-  
-  
+
+
   #Indirect Effect
   if (is.null(confounder)){
     IE=(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)*(exp(medreg$Aest[1]+medreg$Aest[2]*X)-exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
   } else{
     IE=(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:k)]*C))-exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:k)]*C)))
   }
-  
+
   #Interactive Reference Effect
   Intref=NDE-CDE
-  
+
   #Pure Indirect Effect
   if (is.null(confounder)){
     PIE=(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)*(exp(medreg$Aest[1]+medreg$Aest[2]*X)-exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
   } else{
     PIE=(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:k)]*C))-exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:k)]*C)))
   }
-  
+
   #Interactive Mediation Effect
   Intmed=IE-PIE
-  
+
   #Interactive Effect
   OvInt=Intmed+Intref
-  
+
   #Total Effect
   TE=NDE+IE
-  
+
   #Proportion Mediated
   PM=IE/(IE+NDE)
-  
+
   #Proportion Interacted
   PI=(Intref+Intmed)/TE
-  
+
   #Proportion Eliminated
   PE=(TE-CDE)/TE
-  
+
   if (error=='Delta'){
     #Standard Errors with Delta Method
     if (is.null(confounder)){
       GamCDE=c(0,0,0,1,M,0)
-      
+
       d1=outreg$coefficients[[4]]*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar)
       d2=outreg$coefficients[[4]]*Xstar*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar)
       d4=0
@@ -489,7 +489,7 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
       d6=0
       d7=exp(medreg$Aest[1]+medreg$Aest[2]*Xstar)
       GamNDE=c(d1,d2,d4,d5,d6,d7)
-      
+
       i1=(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)*(exp(medreg$Aest[1]+medreg$Aest[2]*X)-exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
       i2=(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)*(X*exp(medreg$Aest[1]+medreg$Aest[2]*X)-Xstar*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
       i4=0
@@ -497,7 +497,7 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
       i6=(exp(medreg$Aest[1]+medreg$Aest[2]*X)-exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
       i7=X*(exp(medreg$Aest[1]+medreg$Aest[2]*X)-exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
       GamIE=c(i1,i2,i4,i5,i6,i7)
-      
+
       r1=outreg$coefficients[[4]]*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
       r2=outreg$coefficients[[4]]*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))*Xstar
       r4=0
@@ -505,7 +505,7 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
       r6=0
       r7=(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))-M
       GamIntref=c(r1,r2,r4,r5,r6,r7)
-      
+
       p1=(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)*(exp(medreg$Aest[1]+medreg$Aest[2]*X)-exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
       p2=(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)*(X*exp(medreg$Aest[1]+medreg$Aest[2]*X)-Xstar*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
       p4=0
@@ -514,9 +514,9 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
       p7=(Xstar)*(exp(medreg$Aest[1]+medreg$Aest[2]*X)-exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
       GamPIE=c(p1,p2,p4,p5,p6,p7)
     } else {
-      
+
       GamCDE=c(0,0,0*C,0,1,0,M,0*C)
-      
+
       d1=outreg$coefficients[[4]]*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg$Aest[c(3:k)]*C))
       d2=outreg$coefficients[[4]]*Xstar*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg$Aest[c(3:k)]*C))
       d3=outreg$coefficients[[4]]*C*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg$Aest[c(3:k)]*C))
@@ -526,7 +526,7 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
       d7=exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg$Aest[c(3:k)]*C))
       d8=C*0
       GamNDE=c(d1,d2,d3,d4,d5,d6,d7,d8)
-      
+
       i1=(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:k)]*C))-exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:k)]*C)))
       i2=(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)*(X*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:k)]*C))-Xstar*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:k)]*C)))
       i3=C*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:k)]*C))-exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:k)]*C)))
@@ -536,7 +536,7 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
       i7=X*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:k)]*C))-exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:k)]*C)))
       i8=C*0
       GamIE=c(i1,i2,i3,i4,i5,i6,i7,i8)
-      
+
       r1=outreg$coefficients[[4]]*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:k)]*C)))
       r2=outreg$coefficients[[4]]*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:k)]*C)))*Xstar
       r3=outreg$coefficients[[4]]*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:k)]*C)))*C
@@ -546,7 +546,7 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
       r7=(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:k)]*C)))-M
       r8=C*0
       GamIntref=c(r1,r2,r3,r4,r5,r6,r7,r8)
-      
+
       p1=(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:k)]*C))-exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:k)]*C)))
       p2=(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)*(X*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:k)]*C))-Xstar*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:k)]*C)))
       p3=(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:k)]*C))-exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:k)]*C)))*C
@@ -556,26 +556,26 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
       p7=(Xstar)*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:k)]*C))-exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:k)]*C)))
       p8=C*0
       GamPIE=c(p1,p2,p3,p4,p5,p6,p7,p8)
-      
+
     }
     GamIntmed=GamIE-GamPIE
     GamTE=GamNDE*(X-Xstar)+GamIE
     GamInt=GamIntmed+GamIntref
-    
+
     #Covariance Matrices
     MZIPCov=medreg$AlphaCov
     lmCov=stats::vcov(outreg) #uses stats package
-    
+
     nlm=nrow(lmCov)
     nMZI=nrow(MZIPCov)
     Topright=matrix(0,nMZI,nlm)
     Botmleft=matrix(0,nlm,nMZI)
-    
+
     Top=cbind(MZIPCov,Topright)
     Btm=cbind(Botmleft,lmCov)
-    
+
     CovM=rbind(Top,Btm)
-    
+
     #Calculate Standard Errors
     CDEse=sqrt(GamCDE %*% CovM %*% GamCDE)*abs(X-Xstar)
     NDEse=sqrt(GamNDE %*% CovM %*% GamNDE)*abs(X-Xstar)
@@ -585,41 +585,41 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
     Intmedse=sqrt(GamIntmed %*% CovM %*% GamIntmed )
     TEse=sqrt(GamTE %*% CovM %*% GamTE)
     OvIntse=sqrt(GamInt %*% CovM %*% GamInt)
-    
+
     #Confidence Intervals
     LCDEci=CDE-1.96*CDEse
     UCDEci=CDE+1.96*CDEse
     CDECI=c(LCDEci,UCDEci)
-    
+
     LNDEci=NDE-1.96*NDEse
     UNDEci=NDE+1.96*NDEse
     NDECI=c(LNDEci,UNDEci)
-    
+
     LIEci=IE-1.96*IEse
     UIEci=IE+1.96*IEse
     IECI=c(LIEci,UIEci)
-    
+
     LIntrefci=Intref-1.96*Intrefse
     UIntrefci=Intref+1.96*Intrefse
     IntrefCI=c(LIntrefci,UIntrefci)
-    
+
     LPIEci=PIE-1.96*PIEse
     UPIEci=PIE+1.96*PIEse
     PIECI=c(LPIEci,UPIEci)
-    
+
     LIntmedci=Intmed-1.96*Intmedse
     UIntmedci=Intmed+1.96*Intmedse
     IntmedCI=c(LIntmedci,UIntmedci)
-    
+
     LTEci=TE-1.96*TEse
     UTEci=TE+1.96*TEse
     TECI=c(LTEci,UTEci)
-    
+
     LOvIntci=OvInt-1.96*OvIntse
     UOvIntci=OvInt+1.96*OvIntse
     OvIntCI=c(LOvIntci,UOvIntci)
   }
-  
+
   if (error=='Boot'){
     datab=list()
     datab2=list()
@@ -653,43 +653,43 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
       Intrefb[[i]]=NDEb[[i]]-CDEb[[i]]
       TEb[[i]]=NDEb[[i]]+IEb[[i]]
       Intmedb[[i]]=IEb[[i]]-PIEb[[i]]
-      
+
       Intb[[i]]=Intmedb[[i]]+Intrefb[[i]]
     }
-    
+
     #Controlled Direct Effect
     CDEse=matrixStats::colSds(do.call(rbind,CDEb))
     CDECI=stats::quantile(do.call(rbind,CDEb),c(0.025,.975))
-    
+
     #Natural Direct Effect
     NDEse=matrixStats::colSds(do.call(rbind,NDEb))
     NDECI=stats::quantile(do.call(rbind,NDEb),c(0.025,.975))
-    
-    #Indirect Effect 
+
+    #Indirect Effect
     IEse=matrixStats::colSds(do.call(rbind,IEb))
     IECI=stats::quantile(do.call(rbind,IEb),c(0.025,.975))
-    
+
     #Interactive Reference Effect
     Intrefse=matrixStats::colSds(do.call(rbind,Intrefb))
     IntrefCI=stats::quantile(do.call(rbind,Intrefb),c(0.025,.975))
-    
+
     #Pure Indirect Effect
     PIEse=matrixStats::colSds(do.call(rbind,PIEb))
     PIECI=stats::quantile(do.call(rbind,PIEb),c(0.025,.975))
-    
+
     #Interactive Mediation Effect
     Intmedse=matrixStats::colSds(do.call(rbind,Intmedb))
     IntmedCI=stats::quantile(do.call(rbind,Intmedb),c(0.025,.975))
-    
+
     #Overall Interactive Effect
     OvIntse=matrixStats::colSds(do.call(rbind,Intb))
     OvIntCI=stats::quantile(do.call(rbind,Intb),c(0.025,.975))
-    
+
     #Total Effect
     TEse=matrixStats::colSds(do.call(rbind,TEb))
     TECI=stats::quantile(do.call(rbind,TEb),c(0.025,.975))
   }
-  
+
   output=list(lm=outreg,mzip=medreg,CDE=CDE,NDE=NDE,NIE=IE,CDEse=CDEse,CDECI=CDECI,NDEse=NDEse,NDECI=NDECI,NIEse=IEse,NIECI=IECI,
               Intref=Intref,Intrefse=Intrefse,IntrefCI=IntrefCI,Intmed=Intmed,Intmedse=Intmedse,IntmedCI=IntmedCI,
               PIE=PIE,PIEse=PIEse,PIECI=PIECI,TE=TE,TEse=TEse,TECI=TECI,
@@ -751,21 +751,21 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
   #as.formula and lm part of stats package
   glmdata=data.frame(glmout,glmpred)
   f<-stats::as.formula(paste(colnames(glmout),paste(colnames(glmpred),collapse="+"),sep="~"))
-  
+
   m=ncol(glmdata)-1
   r=ncol(glmdata)
   outreg=robust::glmRob(f,data=glmdata,family=poisson())
-  
+
   if (!is.null(confounder)){
     if (is.null(C)){
       confounder=cbind(confounder)
       C=colMeans(confounder)
     }
   }
-  
+
   #Direct Effect
   RRDE=exp(outreg$coefficients[[2]]*(X-Xstar))
-  
+
   #Indirect effect
   if (is.null(confounder)){
     RRIE=((1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))*(exp(medreg$Gest[1]+medreg$Gest[2]*X)+
@@ -781,10 +781,10 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
   #Proportion Mediated
   RRTE=RRIE*RRDE
   PM=(RRDE*(RRIE-1))/(RRIE*RRDE-1)
-  
+
   if (error=='Delta'){
     #Standard Errors Delta Method
-    
+
     #Gamma for delta involves gamma coefficients from MZIP
     if (is.null(confounder)){
       GamDE=c(0,0,0,0,0,X-Xstar,0)
@@ -794,7 +794,7 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
       W=exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]])-1))
       H=P+V
       J=S+W
-      
+
       r1=(S/(1+S))-(P/(1+P))+((P+(exp(outreg$coefficients[[3]])-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H)-
         ((S+(exp(outreg$coefficients[[3]])-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J)
       r2=Xstar*((S/(1+S))-((S+(exp(outreg$coefficients[[3]])-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J))+
@@ -807,20 +807,20 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
       t2=0
       t3=(((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]))/H)
       -(((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]))/J)
-      
-      
+
+
       GamIE=c(r1,r2,a1,a2,t1,t2,t3)
-      
+
     } else {
       GamDE=c(0,0,0*C,0,0,0*C,0,X-Xstar,0,0*C)
-      
+
       P=exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))
       S=exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))
       V=exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]])-1))
       W=exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]])-1))
       H=P+V
       J=S+W
-      
+
       r1=(S/(1+S))-(P/(1+P))+((P+(exp(outreg$coefficients[[3]])-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H)-
         ((S+(exp(outreg$coefficients[[3]])-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J)
       r2=Xstar*((S/(1+S))-((S+(exp(outreg$coefficients[[3]])-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J))+
@@ -836,43 +836,43 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
       t3=(((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]))/H)+
         -(((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]))/J)
       t4=C*0
-      
-      
+
+
       GamIE=c(r1,r2,r3,a1,a2,a3,t1,t2,t3,t4)
     }
-    
+
     GamTE=GamIE+GamDE
     #Extract Covariance matrices
     MZIPCov=medreg$Cov
     lmCov=outreg$cov #uses stats package
-    
+
     nlm=nrow(lmCov)
     nMZI=nrow(MZIPCov)
     Topright=matrix(0,nMZI,nlm)
     Botmleft=matrix(0,nlm,nMZI)
-    
+
     Top=cbind(MZIPCov,Topright)
     Btm=cbind(Botmleft,lmCov)
-    
+
     CovM=rbind(Top,Btm)
-    
+
     logRRDEse=sqrt(GamDE %*% CovM %*% GamDE)
     logRRIEse=sqrt(GamIE %*% CovM %*% GamIE)
     logRRTEse=sqrt(GamTE %*% CovM %*% GamTE)
-    
+
     LRRDEci=exp(log(RRDE)-1.96*logRRDEse)
     URRDEci=exp(log(RRDE)+1.96*logRRDEse)
     RRDECI=c(LRRDEci,URRDEci)
-    
+
     LRRIEci=exp(log(RRIE)-1.96*logRRIEse)
     URRIEci=exp(log(RRIE)+1.96*logRRIEse)
     RRIECI=c(LRRIEci,URRIEci)
-    
+
     LRRTEci=exp(log(RRTE)-1.96*logRRTEse)
     URRTEci=exp(log(RRTE)+1.96*logRRTEse)
     RRTECI=c(LRRTEci,URRTEci)
   }
-  
+
   if (error=='Boot'){
     datab=list()
     datab2=list()
@@ -905,25 +905,25 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
       }
       RRDEb[[i]]=exp(outregb[[i]]$coefficients[[2]]*(X-Xstar))
       RRTEb[[i]]=RRIEb[[i]]*RRDEb[[i]]
-      
+
       logRRDEb[[i]]=log(RRDEb[[i]])
       logRRIEb[[i]]=log(RRIEb[[i]])
       logRRTEb[[i]]=log(RRTEb[[i]])
     }
-    
+
     #quantile part of stats package. colSds part of matrixStats package (not base)
     #Risk Ratio Direct Effect
     logRRDEse=matrixStats::colSds(do.call(rbind,logRRDEb))
     RRDECI=stats::quantile(do.call(rbind,RRDEb),c(0.025,.975))
-    
+
     #Risk Ratio Indirect Effect
     logRRIEse=matrixStats::colSds(do.call(rbind,logRRIEb))
     RRIECI=stats::quantile(do.call(rbind,RRIEb),c(0.025,.975))
-    
+
     logRRTEse=matrixStats::colSds(do.call(rbind,logRRTEb))
     RRTECI=stats::quantile(do.call(rbind,RRTEb),c(0.025,.975))
   }
-  
+
   output=list(GLM=outreg,MZIP=medreg,RRNDE=RRDE,RRNIE=RRIE,PM=PM,logRRNDEse=logRRDEse,RRNDEci=RRDECI,logRRNIEse=logRRIEse,RRNIEci=RRIECI,
               RRTE=RRTE,logRRTEse=logRRTEse,RRTEci=RRTECI)
 }
@@ -941,7 +941,7 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
 #' @param Xstar is the theoretical value for the exposure variable to be compared to X. The default is 0, so direct, indirect, and proportion mediated values will be for a 1 unit increase in the exposure variable.
 #' @param n is the number of repetitions for bootstrapping. Default is 1000. Setting n when using delta method errors will have no effect on output.
 #' @param C is a vector for theoretical values of each confounder. If left out the default will be set to the mean of each confounder giving marginal effects
-#' @param M is a fixed value for the mediator, M. If M is not specified, M will be set to its mean value 
+#' @param M is a fixed value for the mediator, M. If M is not specified, M will be set to its mean value
 #' @param error ='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method
 #' @return The function will return a list of 34 elements.
 #'     GLM is the results of regressing the mediator+exposure+confounder on the outcome using a Poisson model with robust standard errors. To assess interaction effect individually look in the glm statement at the 4th parameter estimate \cr
@@ -977,7 +977,7 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
 #'     PAIntref is the proportion of the total effect due to just interaction \cr
 #'     PAIntmed is the proportion of the total effect attributable to the joint effect of mediation and interaction \cr
 #'     PAPIE is the proportion of the total effect attributable to just mediation \cr
-#'     terr is the total excess relative risk 
+#'     terr is the total excess relative risk
 #' @examples
 #'     binoutzimedint(outcome=ContinuousOutcome,mediator=ZICount,exposure=race,n=200,error="Boot")
 #'     binoutzimedint(outcome=data$outcome,mediator=data$mediator,exposure=data$exp,confounder=cbind(data$var1,data$var2),X=10,Xstar=0,C=c(1,3),M=100)
@@ -995,14 +995,14 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
     glmpred=data.frame(exposure,mediator,interaction,confounder)
     medreg=mzip(y=mediator,pred=cbind(exposure,confounder),print=F)
   }
-  
+
   glmdata=data.frame(glmout,glmpred)
   f<-stats::as.formula(paste(colnames(glmout),paste(colnames(glmpred),collapse="+"),sep="~"))
-  
+
   m=ncol(glmdata)-2
   r=ncol(glmdata)
   outreg=robust::glmRob(f,data=glmdata,family=poisson())
-  
+
   if (!is.null(confounder)){
     if (is.null(C)){
       confounder=cbind(confounder)
@@ -1012,11 +1012,11 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
   if (is.null(M)){
     M=mean(mediator)
   }
-  
+
   #Controlled Direct Effect
   RRCDE=exp((outreg$coefficients[[2]]+outreg$coefficients[[4]]*M)*(X-Xstar))
-  
-  
+
+
   #Natural Direct Effect
   if (is.null(confounder)){
     RRNDE=((exp(outreg$coefficients[[2]]*X))*(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)+
@@ -1029,7 +1029,7 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
       ((exp(outreg$coefficients[[2]]*Xstar))*(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))+
                                                 exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))))
   }
-  
+
   #Indirect Effect
   if (is.null(confounder)){
     RRIE=((1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))*(exp(medreg$Gest[1]+medreg$Gest[2]*X)+
@@ -1042,9 +1042,9 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
       ((1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))*(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))+
                                                                                    exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))))
   }
-  
-  
-  
+
+
+
   #Pure Indirect Effect
   if (is.null(confounder)){
     RRPIE=((1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))*(exp(medreg$Gest[1]+medreg$Gest[2]*X)+
@@ -1057,46 +1057,46 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
       ((1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))*(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))+
                                                                                    exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))))
   }
-  
-  
+
+
   #Proportion Mediated
   PM=RRNDE*(RRIE-1)/(RRIE*RRNDE-1)
-  
+
   #kappa
   kappa=(exp(outreg$coefficients[[3]]*M+outreg$coefficients[[4]]*Xstar*M)*(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/
     ((exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))+exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)))
-  
-  
+
+
   #Total Effect
   RRTE=RRNDE*RRIE
-  
-  
+
+
   #Interactive Reference Effect
   RRIntref=((RRNDE-1)/kappa)-RRCDE+1
-  
-  
+
+
   #Interactive Mediation Effect
   RRIntmed=(RRTE-RRNDE-RRPIE+1)/kappa
-  
+
   #Proportion Eliminated
   PE=(RRTE-RRCDE)/(RRTE-1)
-  
+
   terr=kappa*(RRCDE-1)+kappa*RRIntref+kappa*RRIntmed+(RRPIE-1)
-  
+
   PACDE=(kappa*(RRCDE-1))/terr
   PAIntref=(kappa*(RRIntref))/terr
   PAIntmed=(kappa*(RRIntmed))/terr
   PAPIE=(RRPIE-1)/terr
   PAINT=PAIntref+PAIntmed
-  
+
   #Interactive Effect
   RRInt=RRIntmed+RRIntref
-  
+
   if (error=='Delta'){
     #Standard Errors with Delta Method
     if (is.null(confounder)){
       GamCDE=c(0,0,0,0,0,1,M,0)
-      
+
       Q=(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)+
            exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)))
       R=(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)+
@@ -1104,7 +1104,7 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
       B=exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)
       D=Q-B
       G=R-B
-      
+
       dr1=((B+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*D*B*
               exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/Q)-((B+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*G*B*
                                                                exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/R)
@@ -1121,15 +1121,15 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
       dt4=((X*(B+1)*D*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/Q)-
         ((Xstar*(B+1)*G*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/R)
       GamNDE=c(dr1,dr2,da1,da2,dt1,dt2,dt3,dt4)
-      
-      
+
+
       P=exp(medreg$Gest[1]+medreg$Gest[2]*X)
       S=exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)
       V=exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))
       W=exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))
       H=P+V
       J=S+W
-      
+
       nr1=(S/(1+S))-(P/(1+P))+((P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H)-
         ((S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J)
       nr2=Xstar*((S/(1+S))-((S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J))+
@@ -1143,14 +1143,14 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
       nt3=(((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/H)
       -(((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/J)
       nt4=X*nt3
-      
+
       GamIE=c(nr1,nr2,na1,na2,nt1,nt2,nt3,nt4)
-      
+
       V2=exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))
       W2=exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))
       H2=P+V2
       J2=S+W2
-      
+
       pr1=(S/(1+S))-(P/(1+P))+((P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H2)-
         ((S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J2)
       pr2=Xstar*((S/(1+S))-((S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J2))+
@@ -1164,11 +1164,11 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
       pt3=(((P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/H2)+
         -(((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/J2)
       pt4=Xstar*pt3
-      
+
       GamPIE=c(pr1,pr2,pa1,pa2,pt1,pt2,pt3,pt4)
-      
+
       Z=exp((X-Xstar)*outreg$coefficients[[2]]-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
-      
+
       mr1=((-Z*H*P)/((1+P)^2))+(Z*(P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*P*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+P)+
         ((Z*J*S)/((1+S)^2))-(Z*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*S*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar)))/(1+S)+
         ((exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2*P)/((1+P)^2))-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*P*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+P)+
@@ -1197,9 +1197,9 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
         (Z*X/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
         (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))+
         (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
-      
+
       GamIntmed=c(mr1,mr2,ma1,ma2,mt1,mt2,mt3,mt4)
-      
+
       rr1=(-(Z*J*S)/((1+S)^2))+(Z*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*S*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar)))/(1+S)+
         ((exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*S*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+S)
       rr2=Xstar*rr1
@@ -1215,13 +1215,13 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
         (Z*X/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
         (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
       -M*(X-Xstar)*RRCDE
-      
+
       GamIntref=c(rr1,rr2,ra1,ra2,rt1,rt2,rt3,rt4)
-      
+
     } else {
-      
+
       GamCDE=c(0,0,0*C,0,0,0*C,0,1,0,M,0*C)
-      
+
       Q=(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))+
            exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)))
       R=(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))+
@@ -1229,7 +1229,7 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
       B=exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))
       D=Q-B
       G=R-B
-      
+
       dr1=((B+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*D*B*
               exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/Q)-((B+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*G*B*
                                                                                                exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/R)
@@ -1249,14 +1249,14 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
         ((Xstar*(B+1)*G*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/R)
       dt5=C*0
       GamNDE=c(dr1,dr2,dr3,da1,da2,da3,dt1,dt2,dt3,dt4,dt5)
-      
+
       P=exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))
       S=exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))
       V=exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))
       W=exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))
       H=P+V
       J=S+W
-      
+
       nr1=(S/(1+S))-(P/(1+P))+((P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H)-
         ((S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J)
       nr2=Xstar*((S/(1+S))-((S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J))+
@@ -1273,15 +1273,15 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
       -(((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/J)
       nt4=X*nt3
       nt5=C*0
-      
-      
+
+
       GamIE=c(nr1,nr2,nr3,na1,na2,na3,nt1,nt2,nt3,nt4,nt5)
-      
+
       V2=exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))
       W2=exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))
       H2=P+V2
       J2=S+W2
-      
+
       pr1=(S/(1+S))-(P/(1+P))+((P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H2)-
         ((S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J2)
       pr2=Xstar*((S/(1+S))-((S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J2))+
@@ -1298,11 +1298,11 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
       -(((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/J2)
       pt4=Xstar*pt3
       pt5=C*0
-      
+
       GamPIE=c(pr1,pr2,pr3,pa1,pa2,pa3,pt1,pt2,pt3,pt4,pt5)
-      
+
       Z=exp((X-Xstar)*outreg$coefficients[[2]]-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
-      
+
       mr1=((-Z*H*P)/((1+P)^2))+(Z*(P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*P*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+P)+
         ((Z*J*S)/((1+S)^2))-(Z*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*S*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+S)+
         ((exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2*P)/((1+P)^2))-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*P*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+P)-
@@ -1334,9 +1334,9 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
         (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))+
         (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
       mt5=0*C
-      
+
       GamIntmed=c(mr1,mr2,mr3,ma1,ma2,ma3,mt1,mt2,mt3,mt4,mt5)
-      
+
       rr1=(-(Z*J*S)/((1+S)^2))+(Z*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*S*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+S)+
         ((exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*S*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+S)
       rr2=Xstar*rr1
@@ -1355,27 +1355,27 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
         (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
       -M*(X-Xstar)*RRCDE
       rt5=C*0
-      
+
       GamIntref=c(rr1,rr2,rr3,ra1,ra2,ra3,rt1,rt2,rt3,rt4,rt5)
-      
+
     }
     GamTE=GamNDE+GamIE
     GamInt=GamIntref+GamIntmed
-    
+
     #Covariance Matrices
     MZIPCov=medreg$Cov
     lmCov=outreg$cov #uses stats package
-    
+
     nlm=nrow(lmCov)
     nMZI=nrow(MZIPCov)
     Topright=matrix(0,nMZI,nlm)
     Botmleft=matrix(0,nlm,nMZI)
-    
+
     Top=cbind(MZIPCov,Topright)
     Btm=cbind(Botmleft,lmCov)
-    
+
     CovM=rbind(Top,Btm)
-    
+
     #Now calculate standard errors
     logRRCDEse=sqrt(GamCDE %*% CovM %*% GamCDE)*(X-Xstar)
     logRRNDEse=sqrt(GamNDE %*% CovM %*% GamNDE)
@@ -1385,40 +1385,40 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
     logRRPIEse=sqrt(GamPIE %*% CovM %*% GamPIE)
     logRRTEse=sqrt(GamTE %*% CovM %*% GamTE)
     RRIntse=sqrt(GamInt %*% CovM %*% GamInt)
-    
+
     LRRCDEci=exp(log(RRCDE)-1.96*logRRCDEse)
     URRCDEci=exp(log(RRCDE)+1.96*logRRCDEse)
     RRCDECI=c(LRRCDEci,URRCDEci)
-    
+
     LRRNDEci=exp(log(RRNDE)-1.96*logRRNDEse)
     URRNDEci=exp(log(RRNDE)+1.96*logRRNDEse)
     RRNDECI=c(LRRNDEci,URRNDEci)
-    
+
     LRRIEci=exp(log(RRIE)-1.96*logRRIEse)
     URRIEci=exp(log(RRIE)+1.96*logRRIEse)
     RRIECI=c(LRRIEci,URRIEci)
-    
+
     LRRIntrefci=(RRIntref)-1.96*RRIntrefse
     URRIntrefci=(RRIntref)+1.96*RRIntrefse
     RRIntrefCI=c(LRRIntrefci,URRIntrefci)
-    
+
     LRRIntmedci=(RRIntmed)-1.96*RRIntmedse
     URRIntmedci=(RRIntmed)+1.96*RRIntmedse
     RRIntmedCI=c(LRRIntmedci,URRIntmedci)
-    
+
     LRRPIEci=exp(log(RRPIE)-1.96*logRRPIEse)
     URRPIEci=exp(log(RRPIE)+1.96*logRRPIEse)
     RRPIECI=c(LRRPIEci,URRPIEci)
-    
+
     LRRTEci=exp(log(RRTE)-1.96*logRRTEse)
     URRTEci=exp(log(RRTE)+1.96*logRRTEse)
     RRTECI=c(LRRTEci,URRTEci)
-    
+
     LRRIntci=(RRInt)-1.96*RRIntse
     URRIntci=(RRInt)+1.96*RRIntse
     RRIntCI=c(LRRIntci,URRIntci)
   }
-  
+
   if (error=='Boot'){
     datab=list()
     datab2=list()
@@ -1449,7 +1449,7 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
                                                                 exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)-1))))/
           ((exp(outregb[[i]]$coefficients[[2]]*Xstar))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar)+
                                                           exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)-1))))
-        
+
         RRIEb[[i]]=((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X)+
                                                                                 exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)-1))))/
           ((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar)+
@@ -1467,7 +1467,7 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
                                                                 exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)-1))))/
           ((exp(outregb[[i]]$coefficients[[2]]*Xstar))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
                                                           exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)-1))))
-        
+
         RRIEb[[i]]=((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
                                                                                                                       exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)-1))))/
           ((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
@@ -1478,54 +1478,54 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
                                                                                                          exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)-1))))
         kappab[[i]]=(exp(outregb[[i]]$coefficients[[3]]*M+outregb[[i]]$coefficients[[4]]*Xstar*M)*(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C))))/
           ((exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))+exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)-1)))
-        
+
       }
       RRCDEb[[i]]=exp((outregb[[i]]$coefficients[[2]]+outregb[[i]]$coefficients[[4]]*M)*(X-Xstar))
       RRTEb[[i]]=RRIEb[[i]]*RRNDEb[[i]]
       RRIntrefb[[i]]=((RRNDEb[[i]]-1)/kappab[[i]])-RRCDEb[[i]]+1
       RRIntmedb[[i]]=(RRTEb[[i]]-RRNDEb[[i]]-RRPIEb[[i]]+1)/kappab[[i]]
       RRIntb[[i]]=RRIntmedb[[i]]+RRIntrefb[[i]]
-      
+
       logRRCDEb[[i]]=log(RRCDEb[[i]])
       logRRNDEb[[i]]=log(RRNDEb[[i]])
       logRRIEb[[i]]=log(RRIEb[[i]])
       logRRTEb[[i]]=log(RRTEb[[i]])
       logRRPIEb[[i]]=log(RRPIEb[[i]])
     }
-    
+
     #RRCDE
     logRRCDEse=matrixStats::colSds(do.call(rbind,logRRCDEb))
     RRCDECI=stats::quantile(do.call(rbind,RRCDEb),c(0.025,.975))
-    
+
     #Risk Ratio Natural Direct Effect
     logRRNDEse=matrixStats::colSds(do.call(rbind,logRRNDEb))
     RRNDECI=stats::quantile(do.call(rbind,RRNDEb),c(0.025,.975))
-    
+
     #Risk Ratio Indirect Effect
     logRRIEse=matrixStats::colSds(do.call(rbind,logRRIEb))
     RRIECI=stats::quantile(do.call(rbind,RRIEb),c(0.025,.975))
-    
+
     #Interactive Reference Effect
     RRIntrefse=matrixStats::colSds(do.call(rbind,RRIntrefb))
     RRIntrefCI=stats::quantile(do.call(rbind,RRIntrefb),c(0.025,.975))
-    
+
     #Pure Indirect Effect
     logRRPIEse=matrixStats::colSds(do.call(rbind,logRRPIEb))
     RRPIECI=stats::quantile(do.call(rbind,RRPIEb),c(0.025,.975))
-    
+
     #Interactive Mediation Effect
     RRIntmedse=matrixStats::colSds(do.call(rbind,RRIntmedb))
     RRIntmedCI=stats::quantile(do.call(rbind,RRIntmedb),c(0.025,.975))
-    
+
     #Total Effect
     logRRTEse=matrixStats::colSds(do.call(rbind,logRRTEb))
     RRTECI=stats::quantile(do.call(rbind,RRTEb),c(0.025,.975))
-    
+
     #Interaction
     RRIntse=matrixStats::colSds(do.call(rbind,RRIntb))
     RRIntCI=stats::quantile(do.call(rbind,RRIntb),c(0.025,.975))
   }
-  
+
   output=list(GLM=outreg,MZIP=medreg,RRCDE=RRCDE,RRNDE=RRNDE,RRNIE=RRIE,logRRCDEse=logRRCDEse,
               logRRNDEse=logRRNDEse,logRRNIEse=logRRIEse,RRCDEci=RRCDECI,RRNDEci=RRNDECI,RRNIEci=RRIECI, PM=PM,
               Intref=RRIntref,Intrefse=RRIntrefse,Intrefci=RRIntrefCI, Intmed=RRIntmed,Intmedse=RRIntmedse,

@@ -28,7 +28,7 @@ binoutzimedint(
 
 \item{C}{is a vector for theoretical values of each confounder. If left out the default will be set to the mean of each confounder giving marginal effects}
 
-\item{n}{is the number of repititions for bootstrapping. Default is 1000. Setting n when using delta method errors will have no effect on output.}
+\item{n}{is the number of repetitions for bootstrapping. Default is 1000. Setting n when using delta method errors will have no effect on output.}
 
 \item{X}{is the theoretical value for the exposure variable to be set at. The default is to 1}
 
@@ -39,7 +39,7 @@ binoutzimedint(
 \item{error}{='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method}
 }
 \value{
-The function will return a list of 30 elements.
+The function will return a list of 34 elements.
 GLM is the results of regressing the mediator+exposure+confounder on the outcome using a Poisson model with robust standard errors. To assess interaction effect individually look in the glm statement at the 4th parameter estimate \cr
 MZIP is the results of regressing the exposure and confounders on the mediator using the MZIP model \cr
 RRCDE is the controlled direct effect risk ratio \cr

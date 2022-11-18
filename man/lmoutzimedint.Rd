@@ -28,7 +28,7 @@ lmoutzimedint(
 
 \item{C}{is a vector for theoretical values of each confounder. If left out the default will be set to the mean of each confounder giving marginal effects}
 
-\item{n}{is the number of repititions for bootstrapping. Default is 1000. Setting n when using delta method errors will have no effect on output.}
+\item{n}{is the number of repetitions for bootstrapping. Default is 1000. Setting n when using delta method errors will have no effect on output.}
 
 \item{X}{is the theoretical value for the exposure variable to be set at. The default is to 1}
 
