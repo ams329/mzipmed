@@ -14,7 +14,8 @@ zioutbinmedint(
   X = 1,
   Xstar = 0,
   C = NULL,
-  error = "Delta"
+  error = "Delta",
+  robust = F
 )
 }
 \arguments{
@@ -37,6 +38,8 @@ zioutbinmedint(
 \item{C}{is a vector for theoretical values of each confounder. If left out the default will be set to the mean of each confounder giving marginal effects}
 
 \item{error}{='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method}
+
+\item{robust}{indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.}
 }
 \value{
 The function will return a list of 34 elements.
@@ -80,6 +83,7 @@ This function will do the same thing as the zioutbinmed function, but includes a
 4-way decomposition of total effect (Vanderweele) are included in the output.
 }
 \examples{
-    zioutbinmedint(outcome=zioutcome,mediator=binarymediator,exposure=race,n=200,error="Boot")
-    zioutbinmedint(outcome=data$outcome,mediator=data$mediator,exposure=data$exp,confounder=cbind(data$var1,data$var2),X=10,Xstar=0,C=c(1,3),M=100)
+    zimout=zioutbinmedint(outcome=mzipmed_data$ziY2,mediator=mzipmed_data$binM,
+                   exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
+                   mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0,M=NULL,C=NULL)
 }

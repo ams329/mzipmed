@@ -12,7 +12,8 @@ zioutlmmed(
   X = 1,
   Xstar = 0,
   error = "Delta",
-  n = 1000
+  n = 1000,
+  robust = F
 )
 }
 \arguments{
@@ -31,6 +32,8 @@ zioutlmmed(
 \item{error}{='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method}
 
 \item{n}{is the number of repetition if bootstrapped errors are used. Default is 1000}
+
+\item{robust}{indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.}
 }
 \value{
 The function will return a list of 12 elements.
@@ -56,6 +59,13 @@ assumes that the outcome is continuous and all exposure, mediator, outcome, and 
 have the same sample size. Binary variables must be dummy coded prior.
 }
 \examples{
-    zioutlmmed(outcome=zioutcome,mediator=contmediator,exposure=race,n=1000,error='Boot')
-    zioutlmmed(outcome=data$outcome,mediator=data$mediator,exposure=data$exp,confounder=cbind(data$var1,data$var2),X=10,Xstar=0,C=c(1,3))
+    #Example using delta method
+    ziout=zioutlmmed(outcome=mzipmed_data$ziY1,mediator=mzipmed_data$lmM,
+                 exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
+                 mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0)
+
+   #Example using boostrapping, 20 iterations used for succinctness
+   ziout2=zioutlmmed(outcome=mzipmed_data$ziY1,mediator=mzipmed_data$lmM,
+                 exposure=mzipmed_data$X, confounder=cbind(mzipmed_data$C1,
+                 mzipmed_data$C2),error="Boot",n=20)
 }

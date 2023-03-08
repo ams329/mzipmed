@@ -14,7 +14,8 @@ lmoutzimedint(
   X = 1,
   Xstar = 0,
   M = NULL,
-  error = "Delta"
+  error = "Delta",
+  robust = FALSE
 )
 }
 \arguments{
@@ -37,6 +38,8 @@ lmoutzimedint(
 \item{M}{is a fixed value for the mediator, M. If M is not specified, M will be set to its mean value}
 
 \item{error}{='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method}
+
+\item{robust}{indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.}
 }
 \value{
 The function will return a list of 30 elements.
@@ -75,7 +78,9 @@ This function will do the same thing as the lmoutzimed function, but includes an
 4-way decomposition of total effect (Vanderweele) are included in the output.
 }
 \examples{
-    lmoutzimedint(outcome=ContinuousOutcome,mediator=ZICount,exposure=race,n=200,error="Boot")
-    lmoutzimedint(outcome=data$outcome,mediator=data$mediator,exposure=data$exp,confounder=cbind(data$var1,data$var2),X=10,Xstar=0,C=c(1,3),M=100)
-    lmoutzimedint(outcome=outcome,mediator=mediator,exposure=race,confounder=sex,C=0,M=0,error='Delta')
+   #Example with exposure-mediator interaction
+   #This builds upon function without interaction
+    zimmed=lmoutzimedint(outcome=mzipmed_data$lmY,mediator=mzipmed_data$ziM,
+                  exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
+                  mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0,M=NULL,C=NULL)
 }

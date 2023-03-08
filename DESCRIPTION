@@ -1,6 +1,6 @@
 Package: mzipmed
 Title: Mediation using MZIP model
-Version: 1.2.0
+Version: 1.2.1
 Authors@R: c(
     person(given = "Andrew",
            family = "Sims",
@@ -10,14 +10,12 @@ Authors@R: c(
 	person(given="Dustin",family="Long", role="aut"),
 	person(given="Leann",family="Long",role="ctb"))
 Description: This package allows for mediation analysis to be conducted in cases where the mediator is a count
-	variable with excess zeroes. Using the counterfactual approach to mediation and the marginalized zero-inflated
-	Poisson (MZIP) model (Long et al. 2014) we can obtain natural direct and indirects effects for the overall population. 
-	This package also allows for instantaenous variance estimation through delta method processes and for exposure-
-	mediator interactions with 4-way decomposition of total effect (Vanderweele 2015).
-	License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+	variable with excess zeroes. Using the counterfactual approach to mediation and the marginalized zero-inflated Poisson (MZIP) model (Long et al. 2014) we can obtain natural direct and indirects effects for the overall population.This package also allows for instantaenous variance estimation through delta method processes and for exposure-mediator interactions with 4-way decomposition of total effect (Vanderweele 2015).
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.2
 Imports: MASS, robust, boot, stats, matrixStats
+License: MIT + file LICENSE
+Depends: 
+    R (>= 2.10)

@@ -5,18 +5,21 @@
 
 #' Marginalized Zero-Inflated Poisson Regression Model
 #'
-#' This function uses Long et. al's(2014) MZIP model to allow you to fit counts variables with excess zeroes
+#' This function uses Long et. al's(2014) MZIP model to allow you to fit counts variables
+#'    with excess zeroes
 #'    while allowing for easy interpretations. This function assumes that
 #'    the outcome and covariates are all the same sample size without missing
 #'    data. Covariates must be numerical, so binary predictors such as
 #'    gender or race need to be dummy coded with zeroes and ones. For more
-#'    information about this model and interpretations see Long, D Leann et al. "A marginalized zero-inflated Poisson regression model with overall exposure effects." Statistics in medicine vol. 33,29 (2014): 5151-65. doi:10.1002/sim.6293.
+#'    information about this model and interpretations see Long, D Leann et al. "A marginalized
+#'    zero-inflated Poisson regression model with overall exposure effects." Statistics in
+#'    medicine vol. 33,29 (2014): 5151-65. doi:10.1002/sim.6293.
 #'    Note: BFGS likelihood optimization was used for this R package
 #' @param y is the outcome variable
 #' @param pred is a vector of covariates (use cbind for multiple)
-#' @param print if =T or =TRUE will print beta coefficient estimates, standard errors, and p-values for the  into the console. If =F or FALSE nothing will be printed into the console. Default is FALSE
+#' @param print if =TRUE will give model parameters. Default =FALSE
 #' @return The function will return a list of 22 elements.
-#'     In the list G(Gamma) refers to the excess zero/logistic part of the model. \cr
+#'     In the list G(Gamma) refers to the excess zero/logistic part of the model \cr
 #'     and A(Alpha) refers to the Poisson/mean part of the model for example. \cr
 #'     Gest are the gamma coefficients for the logistic part of the MZIP model. \cr
 #'     Aest are the alpha coefficients for the Poisson part of the MZIP model. \cr
@@ -31,11 +34,12 @@
 #'     _ModelZpval are the p-values based on the Z scores for the model. \cr
 #'     _RobustZpval are the p-values based on the robust z scores. \cr
 #'     AlphaCov is the covariance matrix for the poisson coefficient estimates \cr
-#'     Cov is the covariance matrix for the MZIP model
+#'     Cov is the covariance matrix for the MZIP model \cr
+#'     RobAlphaCov robust covariance matrix for the Poisson component of MZIP \cr
+#'     RobCov robust covariance matrix
 #' @examples
-#'     mzip(y=CarriesCount,pred=sex,Print=F)
-#'     mzip(y=CarriesCount,pred=cbind(sex,BMI,SBP),print=T)
-#'     mzip(y=data$outcome,pred=cbind(data$exposure,data$confounder))
+#'     test=mzip(y=mzipmed_data$ziY1,pred=cbind(mzipmed_data$X,mzipmed_data$C1,
+#'               mzipmed_data$C2),print=F)
 #' @export
 
 
@@ -129,7 +133,7 @@ mzip = function(y,pred,print=F){
   }
 
   robust = Inv_inform%*%M1%*%Inv_inform
-
+  RobaCov=robust[w:k,w:k]
   m_se			= sqrt(diag(Inv_inform))
 
   r_se			= sqrt(diag(robust))
@@ -164,7 +168,7 @@ mzip = function(y,pred,print=F){
                  ARobustZ = alpha_hat/r_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])],
                  AModelZpval = 2*(1-stats::pnorm(abs(alpha_hat/m_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])]))),
                  ARobustZpval = 2*(1-stats::pnorm(abs(alpha_hat/r_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])]))),
-                 AlphaCov=aCov,Cov=Inv_inform)
+                 AlphaCov=aCov,Cov=Inv_inform,RobCov=robust,RobAlphaCov=RobaCov)
 
   return(output)
 }
@@ -176,12 +180,12 @@ mzip = function(y,pred,print=F){
 #' Mediation Analysis for Zero-Inflated Count Mediators using MZIP (Continuous Outcome)
 #'
 #' This function incorporates the MZIP model into the counterfactual approach to mediation analysis
-#' as proposed by Vanderweele when the mediator is a Zero-Inflated count variable. Standard Errors for
-#' direct and indirect effects are computed using delta method or bootstrapping. Note: This function
-#' assumes that the outcome is continuous and all exposure, mediator, outcome, and confounder variables
+#' as proposed by Vanderweele when the mediator is a Zero-Inflated count variable. Errors for
+#' direct and indirect effects are computed using delta method or bootstrap. Note: This function
+#' assumes that the outcome is continuous and all exposure, mediator, outcome, and covariates
 #' have the same sample size. Binary variables must be dummy coded prior.
 #' @param outcome is the continuous outcome variable
-#' @param mediator is the zero-inflated mediator variable, currently only 1 mediator variable is allowed
+#' @param mediator is the zero-inflated mediator variable, currently only 1 mediator allowed
 #' @param exposure is the primary exposure being considered, only 1 is allowed
 #' @param confounder is a vector of confounder variables. If no confounder variables are needed then confounder is set to NULL. If more than 1 confounder is being considered then use the cbind function, e.g. cbind(var1,var2)
 #' @param X is the theoretical value for the exposure variable to be set at. The default is to 1
@@ -189,6 +193,7 @@ mzip = function(y,pred,print=F){
 #' @param n is the number of repetition if bootstrapped errors are used
 #' @param C is a vector for theoretical values of each confounder. By default each each value of C will be the mean value of each confounder.
 #' @param error ='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method
+#' @param robust indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.
 #' @return The function will return a list of 12 elements.
 #'     LM is the results of regressing the mediator+exposure+confounder on the outcome using a linear model \cr
 #'     MZIP is the results of regressing the exposure and confounders on the mediator using the MZIP model \cr
@@ -203,14 +208,20 @@ mzip = function(y,pred,print=F){
 #'     TECI is the confidence interval for the total effect \cr
 #'     PM is the proportion mediated
 #' @examples
-#'     lmoutzimed(outcome=ContinuousOutcome,mediator=ZICount,exposure=race,n=1000,error='Boot')
-#'     lmoutzimed(outcome=data$outcome,mediator=data$mediator,exposure=data$exp,confounder=cbind(data$var1,data$var2),X=10,Xstar=0,C=c(1,3))
-#'     lmoutzimed(outcome=outcome,mediator=mediator,exposure=race,confounder=sex,C=0,error='Delta')
+#'     #Example with delta method
+#'     zimed=lmoutzimed(outcome=mzipmed_data$lmY,mediator=mzipmed_data$ziM,
+#'                  exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
+#'                  mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0)
+#'
+#'     #Example using bootstrapping, 20 iterations used for succinctness
+#'     zimed2=lmoutzimed(outcome=mzipmed_data$lmY,mediator=mzipmed_data$ziM,
+#'                   exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
+#'                    mzipmed_data$C2),error="Boot",n=20,C=c(0,0.5))
 #' @export
 
 
 
-lmoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,Xstar=0,error='Delta'){
+lmoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,Xstar=0,error='Delta',robust=FALSE){
   lmout=data.frame(outcome)
 
   if (is.null(confounder)){
@@ -273,7 +284,12 @@ lmoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,
 
     GamTE=GamIE+GamDE
     #Extract Covariance matrices
-    MZIPCov=medreg$AlphaCov
+   if (robust){
+     MZIPCov=medreg$RobAlphaCov
+   } else {
+     MZIPCov=medreg$AlphaCov
+   }
+
     lmCov=stats::vcov(outreg) #uses stats package
 
     nlm=nrow(lmCov)
@@ -367,6 +383,7 @@ lmoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,
 #' @param C is a vector for theoretical values of each confounder. If left out the default will be set to the mean of each confounder giving marginal effects
 #' @param M is a fixed value for the mediator, M. If M is not specified, M will be set to its mean value
 #' @param error ='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method
+#' @param robust indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.
 #' @return The function will return a list of 30 elements.
 #'     LM is the results of regressing the mediator+exposure+confounder on the outcome using a linear model. To assess interaction effect individually look in the lm statement at the 4th parameter estimate \cr
 #'     MZIP is the results of regressing the exposure and confounders on the mediator using the MZIP model \cr
@@ -398,13 +415,15 @@ lmoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,
 #'     PropInt is the proportion attributable to the interaction effect \cr
 #'     PE is the proportion eliminated
 #' @examples
-#'     lmoutzimedint(outcome=ContinuousOutcome,mediator=ZICount,exposure=race,n=200,error="Boot")
-#'     lmoutzimedint(outcome=data$outcome,mediator=data$mediator,exposure=data$exp,confounder=cbind(data$var1,data$var2),X=10,Xstar=0,C=c(1,3),M=100)
-#'     lmoutzimedint(outcome=outcome,mediator=mediator,exposure=race,confounder=sex,C=0,M=0,error='Delta')
+#'    #Example with exposure-mediator interaction
+#'    #This builds upon function without interaction
+#'     zimmed=lmoutzimedint(outcome=mzipmed_data$lmY,mediator=mzipmed_data$ziM,
+#'                   exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
+#'                   mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0,M=NULL,C=NULL)
 #' @export
 
 
-lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,Xstar=0,M=NULL,error='Delta'){
+lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,Xstar=0,M=NULL,error='Delta',robust=FALSE){
 
   interaction=mediator*exposure
   lmout=data.frame(outcome)
@@ -563,7 +582,11 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
     GamInt=GamIntmed+GamIntref
 
     #Covariance Matrices
-    MZIPCov=medreg$AlphaCov
+    if (robust){
+      MZIPCov=medreg$RobAlphaCov
+    } else {
+      MZIPCov=medreg$AlphaCov
+    }
     lmCov=stats::vcov(outreg) #uses stats package
 
     nlm=nrow(lmCov)
@@ -719,6 +742,7 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
 #' @param n is the number of repetition if bootstrapped errors are used. Default is 1000
 #' @param C is a vector for theoretical values of each confounder. By default each each value of C will be the mean value of each confounder.
 #' @param error ='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method
+#' @param robust indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.
 #' @return The function will return a list of 12 elements.
 #'     GLM is the results of regressing the mediator+exposure+confounder on the outcome using a Poisson model with robust standard errors \cr
 #'     MZIP is the results of regressing the exposure and confounders on the mediator using the MZIP model \cr
@@ -733,13 +757,19 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
 #'     RRTECI is the confidence interval for the total effect risk ratio \cr
 #'     PM is the proportion mediated
 #' @examples
-#'     binoutzimed(outcome=BinaryOutcome,mediator=ZICount,exposure=race,n=1000,error='Boot')
-#'     binoutzimed(outcome=data$outcome,mediator=data$mediator,exposure=data$exp,confounder=cbind(data$var1,data$var2),X=10,Xstar=0,C=c(1,3))
-#'     binoutzimed(outcome=countoutcome,mediator=mzipmediator,exposure=race,confounder=sex,C=0,error='Delta')
+#'     #Example with delta method
+#'     zimed=binoutzimed(outcome=mzipmed_data$binY,mediator=mzipmed_data$ziM,
+#'                      exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
+#'                      mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0)
+#'
+#'     #Example using bootstrapping, 20 iterations are used for succinctness
+#'     zimed2=binoutzimed(outcome=mzipmed_data$binY,mediator=mzipmed_data$ziM,
+#'                    exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
+#'                    mzipmed_data$C2),error="Boot",n=20,C=c(0,0.5))
 #' @export
 
 
-binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,Xstar=0,error='Delta'){
+binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,Xstar=0,error='Delta',robust=F){
   glmout=data.frame(outcome)
   if (is.null(confounder)){
     glmpred=data.frame(exposure,mediator)
@@ -843,7 +873,11 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
 
     GamTE=GamIE+GamDE
     #Extract Covariance matrices
-    MZIPCov=medreg$Cov
+    if (robust){
+      MZIPCov=medreg$RobCov
+    } else {
+      MZIPCov=medreg$Cov
+    }
     lmCov=outreg$cov #uses stats package
 
     nlm=nrow(lmCov)
@@ -943,6 +977,7 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
 #' @param C is a vector for theoretical values of each confounder. If left out the default will be set to the mean of each confounder giving marginal effects
 #' @param M is a fixed value for the mediator, M. If M is not specified, M will be set to its mean value
 #' @param error ='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method
+#' @param robust indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.
 #' @return The function will return a list of 34 elements.
 #'     GLM is the results of regressing the mediator+exposure+confounder on the outcome using a Poisson model with robust standard errors. To assess interaction effect individually look in the glm statement at the 4th parameter estimate \cr
 #'     MZIP is the results of regressing the exposure and confounders on the mediator using the MZIP model \cr
@@ -979,12 +1014,15 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
 #'     PAPIE is the proportion of the total effect attributable to just mediation \cr
 #'     terr is the total excess relative risk
 #' @examples
-#'     binoutzimedint(outcome=ContinuousOutcome,mediator=ZICount,exposure=race,n=200,error="Boot")
-#'     binoutzimedint(outcome=data$outcome,mediator=data$mediator,exposure=data$exp,confounder=cbind(data$var1,data$var2),X=10,Xstar=0,C=c(1,3),M=100)
-#'     binoutzimedint(outcome=countoutcome,mediator=zimediator,exposure=race,confounder=sex,C=0,M=0,error='Delta')
+#'    #Example with exposure-mediator interaction
+#'    #This builds upon function without interaction
+#'     zimmed=binoutzimedint(outcome=mzipmed_data$binY,mediator=mzipmed_data$ziM,
+#'                    exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
+#'                    mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0,M=NULL,C=NULL)
+
 #' @export
 
-binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,Xstar=0,M=NULL,error='Delta'){
+binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,Xstar=0,M=NULL,error='Delta',robust=F){
   #lm, as.formula, quantile in stats, colSds in matrixStats
   interaction=mediator*exposure
   glmout=data.frame(outcome)
@@ -1363,7 +1401,11 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
     GamInt=GamIntref+GamIntmed
 
     #Covariance Matrices
-    MZIPCov=medreg$Cov
+    if (robust){
+      MZIPCov=medreg$RobCov
+    } else {
+      MZIPCov=medreg$Cov
+    }
     lmCov=outreg$cov #uses stats package
 
     nlm=nrow(lmCov)
@@ -1556,6 +1598,7 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
 #' @param Xstar is the theoretical value for the exposure variable to be compared to X. The default is 0, so direct, indirect, and proportion mediated values will be for a 1 unit increase in the exposure variable.
 #' @param n is the number of repetition if bootstrapped errors are used. Default is 1000
 #' @param error ='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method
+#' @param robust indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.
 #' @return The function will return a list of 12 elements.
 #'     LM is the linear model regressing the exposure and covariates on the continuous mediator \cr
 #'     MZIP is the results of regressing the exposure, covariates, and mediator on the outcome using the MZIP model \cr
@@ -1570,11 +1613,18 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
 #'     RRTECI is the confidence interval for the total effect risk ratio \cr
 #'     PM is the proportion mediated
 #' @examples
-#'     zioutlmmed(outcome=zioutcome,mediator=contmediator,exposure=race,n=1000,error='Boot')
-#'     zioutlmmed(outcome=data$outcome,mediator=data$mediator,exposure=data$exp,confounder=cbind(data$var1,data$var2),X=10,Xstar=0,C=c(1,3))
+#'     #Example using delta method
+#'     ziout=zioutlmmed(outcome=mzipmed_data$ziY1,mediator=mzipmed_data$lmM,
+#'                  exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
+#'                  mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0)
+#'
+#'    #Example using boostrapping, 20 iterations used for succinctness
+#'    ziout2=zioutlmmed(outcome=mzipmed_data$ziY1,mediator=mzipmed_data$lmM,
+#'                  exposure=mzipmed_data$X, confounder=cbind(mzipmed_data$C1,
+#'                  mzipmed_data$C2),error="Boot",n=20)
 #' @export
 
-zioutlmmed=function(outcome,mediator,exposure,confounder=NULL,X=1,Xstar=0,error='Delta',n=1000){
+zioutlmmed=function(outcome,mediator,exposure,confounder=NULL,X=1,Xstar=0,error='Delta',n=1000,robust=F){
   lmout=data.frame(mediator)
   if (is.null(confounder)){
     lmpred=data.frame(exposure)
@@ -1623,7 +1673,11 @@ zioutlmmed=function(outcome,mediator,exposure,confounder=NULL,X=1,Xstar=0,error=
 
     #Covariance Matrices
     lmCov=stats::vcov(medreg) #uses stats package
-    MZIPCov=outreg$AlphaCov
+    if (robust){
+      MZIPCov=outreg$RobAlphaCov
+    } else {
+      MZIPCov=outreg$AlphaCov
+    }
 
     nlm=nrow(lmCov)
     nMZI=nrow(MZIPCov)
@@ -1721,6 +1775,7 @@ zioutlmmed=function(outcome,mediator,exposure,confounder=NULL,X=1,Xstar=0,error=
 #' @param C is a vector for theoretical values of each confounder. If left out the default will be set to the mean of each confounder giving marginal effects
 #' @param M is a fixed value for the mediator, M. If M is not specified, M will be set to its mean value
 #' @param error ='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method
+#' @param robust indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.
 #' @return The function will return a list of 34 elements.
 #'     MZIP is the results of regressing the mediator+exposure+confounder on the outcome using MZIP. To assess interaction effect individually look in the glm statement at the 4th parameter estimate \cr
 #'     LM is the results of regressing the exposure and confounders on the mediator using linear regression \cr
@@ -1757,11 +1812,12 @@ zioutlmmed=function(outcome,mediator,exposure,confounder=NULL,X=1,Xstar=0,error=
 #'     PAPIE is the proportion of the total effect attributable to just mediation \cr
 #'     terr is the total excess relative risk
 #' @examples
-#'     zioutlmmedint(outcome=zioutcome,mediator=linmediator,exposure=race,n=200,error="Boot")
-#'     zioutlmmedint(outcome=data$outcome,mediator=data$mediator,exposure=data$exp,confounder=cbind(data$var1,data$var2),X=10,Xstar=0,C=c(1,3),M=100)
+#' zimout=zioutlmmedint(outcome=mzipmed_data$ziY1,mediator=mzipmed_data$lmM,
+#'              exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
+#'              mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0,M=NULL,C=NULL)
 #' @export
 
-zioutlmmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X=1,Xstar=0,C=NULL,error='Delta'){
+zioutlmmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X=1,Xstar=0,C=NULL,error='Delta',robust=F){
   interaction=mediator*exposure
   lmout=data.frame(mediator)
   if (is.null(confounder)){
@@ -1942,7 +1998,11 @@ zioutlmmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X
     GamInt=GamIntref+GamIntmed
     #Covariance Matrices
     lmCov=stats::vcov(medreg) #uses stats package
+    if (robust){
+      MZIPCov=outreg$RobAlphaCov
+    } else {
     MZIPCov=outreg$AlphaCov
+    }
 
     nlm=nrow(lmCov)
     nMZI=nrow(MZIPCov)
@@ -2111,10 +2171,10 @@ zioutlmmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X
 
   output=list(MZIP=outreg,LM=medreg,RRCDE=RRCDE,RRNDE=RRNDE,RRNIE=RRIE,logRRCDEse=logRRCDEse,
               logRRNDEse=logRRNDEse,logRRNIEse=logRRIEse,RRCDEci=RRCDECI,RRNDEci=RRNDECI,RRNIEci=RRIECI, PM=PM,
-              RRIntref=RRIntref,RRIntrefse=RRIntrefse,RRIntrefci=RRIntrefCI,RRIntmed=RRIntmed,RRIntmedse=RRIntmedse,
-              RRIntmedci=RRIntmedCI,RRPIE=RRPIE,logRRPIEse=logRRPIEse,RRPIEci=RRPIECI,
-              RRTE=RRTE,logRRTEse=logRRTEse,RRTEci=RRTECI,RRInt=RRInt,
-              RRIntse=RRIntse,RRIntci=RRIntCI,PE=PE,PACDE=PACDE,PAIntref=PAIntref,PAIntmed=PAIntmed,PAPIE=PAPIE,PAINT=PAINT,terr=terr)
+              Intref=RRIntref,Intrefse=RRIntrefse,Intrefci=RRIntrefCI,Intmed=RRIntmed,Intmedse=RRIntmedse,
+              Intmedci=RRIntmedCI,RRPIE=RRPIE,logRRPIEse=logRRPIEse,RRPIEci=RRPIECI,
+              RRTE=RRTE,logRRTEse=logRRTEse,RRTEci=RRTECI,Int=RRInt,
+              Intse=RRIntse,Intci=RRIntCI,PE=PE,PACDE=PACDE,PAIntref=PAIntref,PAIntmed=PAIntmed,PAPIE=PAPIE,PAINT=PAINT,terr=terr)
 }
 
 
@@ -2139,6 +2199,7 @@ zioutlmmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X
 #' @param C is a vector for theoretical values of each confounder. If left out the default will be set to the mean of each confounder giving marginal effects
 #' @param n is the number of repetition if bootstrapped errors are used. Default is 1000
 #' @param error ='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method
+#' @param robust indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.
 #' @return The function will return a list of 12 elements.
 #'     GLM is the logistic model regressing the exposure and covariates on the continuous mediator \cr
 #'     MZIP is the results of regressing the exposure, covariates, and mediator on the outcome using the MZIP model \cr
@@ -2153,11 +2214,18 @@ zioutlmmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X
 #'     RRTECI is the confidence interval for the total effect risk ratio \cr
 #'     PM is the proportion mediated
 #' @examples
-#'     zioutbinmed(outcome=zioutcome,mediator=binarymediator,exposure=race,n=1000,error='Boot')
-#'     zioutbinmed(outcome=data$outcome,mediator=data$mediator,exposure=data$exp,confounder=cbind(data$var1,data$var2),X=10,Xstar=0,C=c(1,3))
+#'     #Example using delta method
+#'     ziout=zioutbinmed(outcome=mzipmed_data$ziY2,mediator=mzipmed_data$binM,
+#'                    exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
+#'                    mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0)
+#'
+#'     #Example using bootstrapping with 20 iterations
+#'     ziout2=zioutbinmed(outcome=mzipmed_data$ziY2,mediator=mzipmed_data$binM,
+#'                    exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
+#'                    mzipmed_data$C2),error="Boot",n=20,C=c(0,0.5))
 #' @export
 
-zioutbinmed=function(outcome,mediator,exposure,confounder=NULL,n=1000,X=1,Xstar=0,C=NULL,error='Delta'){
+zioutbinmed=function(outcome,mediator,exposure,confounder=NULL,n=1000,X=1,Xstar=0,C=NULL,error='Delta',robust=F){
   glmout=data.frame(mediator)
   if (is.null(confounder)){
     glmpred=data.frame(exposure)
@@ -2236,7 +2304,11 @@ zioutbinmed=function(outcome,mediator,exposure,confounder=NULL,n=1000,X=1,Xstar=
 
     #Covariance Matrices
     lmCov=stats::vcov(medreg) #uses stats package
-    MZIPCov=outreg$AlphaCov
+    if (robust){
+      MZIPCov=outreg$RobAlphaCov
+    } else {
+      MZIPCov=outreg$AlphaCov
+    }
 
     nlm=nrow(lmCov)
     nMZI=nrow(MZIPCov)
@@ -2348,6 +2420,7 @@ zioutbinmed=function(outcome,mediator,exposure,confounder=NULL,n=1000,X=1,Xstar=
 #' @param C is a vector for theoretical values of each confounder. If left out the default will be set to the mean of each confounder giving marginal effects
 #' @param M is a fixed value for the mediator, M. If M is not specified, M will be set to its mean value
 #' @param error ='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method
+#' @param robust indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.
 #' @return The function will return a list of 34 elements.
 #'     MZIP is the results of regressing the mediator+exposure+confounder on the outcome using MZIP. To assess interaction effect individually look in the glm statement at the 4th parameter estimate \cr
 #'     GLM is the results of regressing the exposure and confounders on the mediator using logistic regression \cr
@@ -2384,11 +2457,12 @@ zioutbinmed=function(outcome,mediator,exposure,confounder=NULL,n=1000,X=1,Xstar=
 #'     PAPIE is the proportion of the total effect attributable to just mediation \cr
 #'     terr is the total excess relative risk
 #' @examples
-#'     zioutbinmedint(outcome=zioutcome,mediator=binarymediator,exposure=race,n=200,error="Boot")
-#'     zioutbinmedint(outcome=data$outcome,mediator=data$mediator,exposure=data$exp,confounder=cbind(data$var1,data$var2),X=10,Xstar=0,C=c(1,3),M=100)
+#'     zimout=zioutbinmedint(outcome=mzipmed_data$ziY2,mediator=mzipmed_data$binM,
+#'                    exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
+#'                    mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0,M=NULL,C=NULL)
 #' @export
 
-zioutbinmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X=1,Xstar=0,C=NULL,error='Delta'){
+zioutbinmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X=1,Xstar=0,C=NULL,error='Delta',robust=F){
   #lm,quantile,as.formula in Stats
   #colSds in matrixStats
   interaction=mediator*exposure
@@ -2664,7 +2738,11 @@ zioutbinmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,
     GamInt=GamIntref+GamIntmed
     #Covariance Matrices
     lmCov=stats::vcov(medreg) #uses stats package
-    MZIPCov=outreg$AlphaCov
+    if (robust){
+      MZIPCov=outreg$RobAlphaCov
+    } else {
+      MZIPCov=outreg$AlphaCov
+    }
 
     nlm=nrow(lmCov)
     nMZI=nrow(MZIPCov)
@@ -2819,8 +2897,8 @@ zioutbinmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,
 
   output=list(MZIP=outreg,LM=medreg,RRCDE=RRCDE,RRNDE=RRNDE,RRNIE=RRIE,logRRCDEse=logRRCDEse,
               logRRNDEse=logRRNDEse,logRRNIEse=logRRIEse,RRCDEci=RRCDECI,RRNDEci=RRNDECI,RRNIEci=RRIECI, PM=PM,
-              RRIntref=RRIntref,RRIntrefse=RRIntrefse,RRIntrefci=RRIntrefCI,RRIntmed=RRIntmed,RRIntmedse=RRIntmedse,
-              RRIntmedci=RRIntmedCI,RRPIE=RRPIE,logRRPIE=logRRPIE,RRPIEci=RRPIECI,
-              RRTE=RRTE,logRRTEse=logRRTEse,RRTEci=RRTECI,RRInt=RRInt,
-              RRIntse=RRIntse,RRIntci=RRIntCI,PE=PE,PACDE=PACDE,PAIntref=PAIntref,PAIntmed=PAIntmed,PAPIE=PAPIE,PAINT=PAINT,terr=terr)
+              Intref=RRIntref,Intrefse=RRIntrefse,Intrefci=RRIntrefCI,Intmed=RRIntmed,Intmedse=RRIntmedse,
+              Intmedci=RRIntmedCI,RRPIE=RRPIE,logRRPIE=logRRPIE,RRPIEci=RRPIECI,
+              RRTE=RRTE,logRRTEse=logRRTEse,RRTEci=RRTECI,Int=RRInt,
+              Intse=RRIntse,Intci=RRIntCI,PE=PE,PACDE=PACDE,PAIntref=PAIntref,PAIntmed=PAIntmed,PAPIE=PAPIE,PAINT=PAINT,terr=terr)
 }

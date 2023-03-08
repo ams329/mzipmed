@@ -13,13 +13,14 @@ lmoutzimed(
   n = 1000,
   X = 1,
   Xstar = 0,
-  error = "Delta"
+  error = "Delta",
+  robust = FALSE
 )
 }
 \arguments{
 \item{outcome}{is the continuous outcome variable}
 
-\item{mediator}{is the zero-inflated mediator variable, currently only 1 mediator variable is allowed}
+\item{mediator}{is the zero-inflated mediator variable, currently only 1 mediator allowed}
 
 \item{exposure}{is the primary exposure being considered, only 1 is allowed}
 
@@ -34,6 +35,8 @@ lmoutzimed(
 \item{Xstar}{is the theoretical value for the exposure variable to be compared to X. The default is 0, so direct, indirect, and proportion mediated values will be for a 1 unit increase in the exposure variable.}
 
 \item{error}{='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method}
+
+\item{robust}{indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.}
 }
 \value{
 The function will return a list of 12 elements.
@@ -52,13 +55,19 @@ PM is the proportion mediated
 }
 \description{
 This function incorporates the MZIP model into the counterfactual approach to mediation analysis
-as proposed by Vanderweele when the mediator is a Zero-Inflated count variable. Standard Errors for
-direct and indirect effects are computed using delta method or bootstrapping. Note: This function
-assumes that the outcome is continuous and all exposure, mediator, outcome, and confounder variables
+as proposed by Vanderweele when the mediator is a Zero-Inflated count variable. Errors for
+direct and indirect effects are computed using delta method or bootstrap. Note: This function
+assumes that the outcome is continuous and all exposure, mediator, outcome, and covariates
 have the same sample size. Binary variables must be dummy coded prior.
 }
 \examples{
-    lmoutzimed(outcome=ContinuousOutcome,mediator=ZICount,exposure=race,n=1000,error='Boot')
-    lmoutzimed(outcome=data$outcome,mediator=data$mediator,exposure=data$exp,confounder=cbind(data$var1,data$var2),X=10,Xstar=0,C=c(1,3))
-    lmoutzimed(outcome=outcome,mediator=mediator,exposure=race,confounder=sex,C=0,error='Delta')
+    #Example with delta method
+    zimed=lmoutzimed(outcome=mzipmed_data$lmY,mediator=mzipmed_data$ziM,
+                 exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
+                 mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0)
+
+    #Example using bootstrapping, 20 iterations used for succinctness
+    zimed2=lmoutzimed(outcome=mzipmed_data$lmY,mediator=mzipmed_data$ziM,
+                  exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
+                   mzipmed_data$C2),error="Boot",n=20,C=c(0,0.5))
 }

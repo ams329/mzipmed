@@ -11,11 +11,11 @@ mzip(y, pred, print = F)
 
 \item{pred}{is a vector of covariates (use cbind for multiple)}
 
-\item{print}{if =T or =TRUE will print beta coefficient estimates, standard errors, and p-values for the  into the console. If =F or FALSE nothing will be printed into the console. Default is FALSE}
+\item{print}{if =TRUE will give model parameters. Default =FALSE}
 }
 \value{
 The function will return a list of 22 elements.
-In the list G(Gamma) refers to the excess zero/logistic part of the model. \cr
+In the list G(Gamma) refers to the excess zero/logistic part of the model \cr
 and A(Alpha) refers to the Poisson/mean part of the model for example. \cr
 Gest are the gamma coefficients for the logistic part of the MZIP model. \cr
 Aest are the alpha coefficients for the Poisson part of the MZIP model. \cr
@@ -30,19 +30,23 @@ _RobustZ are the robust Z scores for each coefficient. \cr
 _ModelZpval are the p-values based on the Z scores for the model. \cr
 _RobustZpval are the p-values based on the robust z scores. \cr
 AlphaCov is the covariance matrix for the poisson coefficient estimates \cr
-Cov is the covariance matrix for the MZIP model
+Cov is the covariance matrix for the MZIP model \cr
+RobAlphaCov robust covariance matrix for the Poisson component of MZIP \cr
+RobCov robust covariance matrix
 }
 \description{
-This function uses Long et. al's(2014) MZIP model to allow you to fit counts variables with excess zeroes
+This function uses Long et. al's(2014) MZIP model to allow you to fit counts variables
+with excess zeroes
 while allowing for easy interpretations. This function assumes that
 the outcome and covariates are all the same sample size without missing
 data. Covariates must be numerical, so binary predictors such as
 gender or race need to be dummy coded with zeroes and ones. For more
-information about this model and interpretations see Long, D Leann et al. "A marginalized zero-inflated Poisson regression model with overall exposure effects." Statistics in medicine vol. 33,29 (2014): 5151-65. doi:10.1002/sim.6293.
+information about this model and interpretations see Long, D Leann et al. "A marginalized
+zero-inflated Poisson regression model with overall exposure effects." Statistics in
+medicine vol. 33,29 (2014): 5151-65. doi:10.1002/sim.6293.
 Note: BFGS likelihood optimization was used for this R package
 }
 \examples{
-    mzip(y=CarriesCount,pred=sex,Print=F)
-    mzip(y=CarriesCount,pred=cbind(sex,BMI,SBP),print=T)
-    mzip(y=data$outcome,pred=cbind(data$exposure,data$confounder))
+    test=mzip(y=mzipmed_data$ziY1,pred=cbind(mzipmed_data$X,mzipmed_data$C1,
+              mzipmed_data$C2),print=F)
 }

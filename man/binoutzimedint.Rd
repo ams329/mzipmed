@@ -14,7 +14,8 @@ binoutzimedint(
   X = 1,
   Xstar = 0,
   M = NULL,
-  error = "Delta"
+  error = "Delta",
+  robust = F
 )
 }
 \arguments{
@@ -37,6 +38,8 @@ binoutzimedint(
 \item{M}{is a fixed value for the mediator, M. If M is not specified, M will be set to its mean value}
 
 \item{error}{='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method}
+
+\item{robust}{indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.}
 }
 \value{
 The function will return a list of 34 elements.
@@ -80,7 +83,9 @@ This function will do the same thing as the binoutzimed function, but includes a
 4-way decomposition of total effect (Vanderweele) are included in the output.
 }
 \examples{
-    binoutzimedint(outcome=ContinuousOutcome,mediator=ZICount,exposure=race,n=200,error="Boot")
-    binoutzimedint(outcome=data$outcome,mediator=data$mediator,exposure=data$exp,confounder=cbind(data$var1,data$var2),X=10,Xstar=0,C=c(1,3),M=100)
-    binoutzimedint(outcome=countoutcome,mediator=zimediator,exposure=race,confounder=sex,C=0,M=0,error='Delta')
+   #Example with exposure-mediator interaction
+   #This builds upon function without interaction
+    zimmed=binoutzimedint(outcome=mzipmed_data$binY,mediator=mzipmed_data$ziM,
+                   exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
+                   mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0,M=NULL,C=NULL)
 }
