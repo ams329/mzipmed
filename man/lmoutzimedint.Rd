@@ -82,5 +82,5 @@ This function will do the same thing as the lmoutzimed function, but includes an
    #This builds upon function without interaction
     zimmed=lmoutzimedint(outcome=mzipmed_data$lmY,mediator=mzipmed_data$ziM,
                   exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-                  mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0,M=NULL,C=NULL)
+                  mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,M=NULL,C=NULL)
 }

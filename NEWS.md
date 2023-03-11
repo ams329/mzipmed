@@ -1,3 +1,10 @@
+# mzipmed 1.2.2
+
+-Fixed some issues identified through R CMD check
+-Changed Leann Long from contributor to author
+
+---
+
 # mzipmed 1.2.1
 
 -Added a `NEWS.md` file to track changes to the package.

@@ -15,7 +15,7 @@ binoutzimedint(
   Xstar = 0,
   M = NULL,
   error = "Delta",
-  robust = F
+  robust = FALSE
 )
 }
 \arguments{
@@ -87,5 +87,5 @@ This function will do the same thing as the binoutzimed function, but includes a
    #This builds upon function without interaction
     zimmed=binoutzimedint(outcome=mzipmed_data$binY,mediator=mzipmed_data$ziM,
                    exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-                   mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0,M=NULL,C=NULL)
+                   mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,M=NULL,C=NULL)
 }

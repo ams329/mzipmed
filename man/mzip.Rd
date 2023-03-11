@@ -4,7 +4,7 @@
 \alias{mzip}
 \title{Marginalized Zero-Inflated Poisson Regression Model}
 \usage{
-mzip(y, pred, print = F)
+mzip(y, pred, print = FALSE)
 }
 \arguments{
 \item{y}{is the outcome variable}
@@ -48,5 +48,5 @@ Note: BFGS likelihood optimization was used for this R package
 }
 \examples{
     test=mzip(y=mzipmed_data$ziY1,pred=cbind(mzipmed_data$X,mzipmed_data$C1,
-              mzipmed_data$C2),print=F)
+              mzipmed_data$C2),print=FALSE)
 }

@@ -64,7 +64,7 @@ have the same sample size. Binary variables must be dummy coded prior.
     #Example with delta method
     zimed=lmoutzimed(outcome=mzipmed_data$lmY,mediator=mzipmed_data$ziM,
                  exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-                 mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0)
+                 mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0)
 
     #Example using bootstrapping, 20 iterations used for succinctness
     zimed2=lmoutzimed(outcome=mzipmed_data$lmY,mediator=mzipmed_data$ziM,

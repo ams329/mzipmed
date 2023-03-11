@@ -15,7 +15,7 @@ zioutbinmedint(
   Xstar = 0,
   C = NULL,
   error = "Delta",
-  robust = F
+  robust = FALSE
 )
 }
 \arguments{
@@ -85,5 +85,5 @@ This function will do the same thing as the zioutbinmed function, but includes a
 \examples{
     zimout=zioutbinmedint(outcome=mzipmed_data$ziY2,mediator=mzipmed_data$binM,
                    exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-                   mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0,M=NULL,C=NULL)
+                   mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,M=NULL,C=NULL)
 }

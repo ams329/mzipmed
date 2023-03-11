@@ -13,7 +13,7 @@ zioutlmmed(
   Xstar = 0,
   error = "Delta",
   n = 1000,
-  robust = F
+  robust = FALSE
 )
 }
 \arguments{
@@ -62,7 +62,7 @@ have the same sample size. Binary variables must be dummy coded prior.
     #Example using delta method
     ziout=zioutlmmed(outcome=mzipmed_data$ziY1,mediator=mzipmed_data$lmM,
                  exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-                 mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0)
+                 mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0)
 
    #Example using boostrapping, 20 iterations used for succinctness
    ziout2=zioutlmmed(outcome=mzipmed_data$ziY1,mediator=mzipmed_data$lmM,

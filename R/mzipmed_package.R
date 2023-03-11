@@ -5,7 +5,7 @@
 
 #' Marginalized Zero-Inflated Poisson Regression Model
 #'
-#' This function uses Long et. al's(2014) MZIP model to allow you to fit counts variables
+#' This function uses the MZIP model to allow you to fit counts variables
 #'    with excess zeroes
 #'    while allowing for easy interpretations. This function assumes that
 #'    the outcome and covariates are all the same sample size without missing
@@ -39,12 +39,12 @@
 #'     RobCov robust covariance matrix
 #' @examples
 #'     test=mzip(y=mzipmed_data$ziY1,pred=cbind(mzipmed_data$X,mzipmed_data$C1,
-#'               mzipmed_data$C2),print=F)
+#'               mzipmed_data$C2),print=FALSE)
 #' @export
 
 
 
-mzip = function(y,pred,print=F){
+mzip = function(y,pred,print=FALSE){
 
   intercept=rep(1,length(y))
   Z=cbind(intercept,pred)
@@ -144,13 +144,13 @@ mzip = function(y,pred,print=F){
   rlower = c(gamma_hat,alpha_hat) - 1.96*r_se
 
   GWald=(gamma_hat/m_se[1:dim(Z)[2]])^2
-  GPval=ifelse(1-stats::pchisq(q=(gamma_hat/m_se[1:dim(Z)[2]])^2,df=1)<.0001,"<.0001",round(1-pchisq(q=(gamma_hat/m_se[1:dim(Z)[2]])^2,df=1),digits=5))
+  GPval=ifelse(1-stats::pchisq(q=(gamma_hat/m_se[1:dim(Z)[2]])^2,df=1)<.0001,"<.0001",round(1-stats::pchisq(q=(gamma_hat/m_se[1:dim(Z)[2]])^2,df=1),digits=5))
   GRobWald=(gamma_hat/r_se[1:dim(Z)[2]])^2
-  GRobPval=ifelse(1-stats::pchisq(q=(gamma_hat/r_se[1:dim(Z)[2]])^2,df=1)<.0001,"<.0001",round(1-pchisq(q=(gamma_hat/r_se[1:dim(Z)[2]])^2,df=1),digits=5))
+  GRobPval=ifelse(1-stats::pchisq(q=(gamma_hat/r_se[1:dim(Z)[2]])^2,df=1)<.0001,"<.0001",round(1-stats::pchisq(q=(gamma_hat/r_se[1:dim(Z)[2]])^2,df=1),digits=5))
   AWald=(alpha_hat/m_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])])^2
-  APval=ifelse(1-stats::pchisq(q=(alpha_hat/m_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])])^2,df=1)<.0001,"<.0001",round(1-pchisq(q=(alpha_hat/m_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])])^2,df=1),digits=5))
+  APval=ifelse(1-stats::pchisq(q=(alpha_hat/m_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])])^2,df=1)<.0001,"<.0001",round(1-stats::pchisq(q=(alpha_hat/m_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])])^2,df=1),digits=5))
   ARobWald=(alpha_hat/r_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])])^2
-  ARobPval=ifelse(1-stats::pchisq(q=(alpha_hat/r_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])])^2,df=1)<.0001,"<.0001",round(1-pchisq(q=(alpha_hat/r_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])])^2,df=1),digits=5))
+  ARobPval=ifelse(1-stats::pchisq(q=(alpha_hat/r_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])])^2,df=1)<.0001,"<.0001",round(1-stats::pchisq(q=(alpha_hat/r_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])])^2,df=1),digits=5))
 
 
   if(print){cat("Gamma Estimates:",gamma_hat,'\n',"Alpha estimates:",alpha_hat,'\n',"M SE: ", m_se,'\n',"R SE:",r_se,'\n',"Gamma P-Value",GPval,'\n',"R Gamma P-Val",GRobPval,'\n',"Alpha P-Val",APval,'\n',"R Alpha P-Val",ARobPval,'\n')}
@@ -211,7 +211,7 @@ mzip = function(y,pred,print=F){
 #'     #Example with delta method
 #'     zimed=lmoutzimed(outcome=mzipmed_data$lmY,mediator=mzipmed_data$ziM,
 #'                  exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-#'                  mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0)
+#'                  mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0)
 #'
 #'     #Example using bootstrapping, 20 iterations used for succinctness
 #'     zimed2=lmoutzimed(outcome=mzipmed_data$lmY,mediator=mzipmed_data$ziM,
@@ -419,7 +419,7 @@ lmoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,
 #'    #This builds upon function without interaction
 #'     zimmed=lmoutzimedint(outcome=mzipmed_data$lmY,mediator=mzipmed_data$ziM,
 #'                   exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-#'                   mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0,M=NULL,C=NULL)
+#'                   mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,M=NULL,C=NULL)
 #' @export
 
 
@@ -760,7 +760,7 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
 #'     #Example with delta method
 #'     zimed=binoutzimed(outcome=mzipmed_data$binY,mediator=mzipmed_data$ziM,
 #'                      exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-#'                      mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0)
+#'                      mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0)
 #'
 #'     #Example using bootstrapping, 20 iterations are used for succinctness
 #'     zimed2=binoutzimed(outcome=mzipmed_data$binY,mediator=mzipmed_data$ziM,
@@ -769,7 +769,7 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
 #' @export
 
 
-binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,Xstar=0,error='Delta',robust=F){
+binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,Xstar=0,error='Delta',robust=FALSE){
   glmout=data.frame(outcome)
   if (is.null(confounder)){
     glmpred=data.frame(exposure,mediator)
@@ -784,7 +784,7 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
 
   m=ncol(glmdata)-1
   r=ncol(glmdata)
-  outreg=robust::glmRob(f,data=glmdata,family=poisson())
+  outreg=robust::glmRob(f,data=glmdata,family=stats::poisson())
 
   if (!is.null(confounder)){
     if (is.null(C)){
@@ -922,7 +922,7 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
     for (i in 1:n){
       datab[[i]]=sample(1:nrow(glmdata),replace=T)
       datab2[[i]]=glmdata[datab[[i]],]
-      outregb[[i]]=robust::glmRob(f,data=datab2[[i]],family=poisson())
+      outregb[[i]]=robust::glmRob(f,data=datab2[[i]],family=stats::poisson())
       if (is.null(confounder)){
         medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=datab2[[i]][["exposure"]],print=F)
         RRIEb[[i]]=((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X)+
@@ -1018,11 +1018,11 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
 #'    #This builds upon function without interaction
 #'     zimmed=binoutzimedint(outcome=mzipmed_data$binY,mediator=mzipmed_data$ziM,
 #'                    exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-#'                    mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0,M=NULL,C=NULL)
+#'                    mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,M=NULL,C=NULL)
 
 #' @export
 
-binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,Xstar=0,M=NULL,error='Delta',robust=F){
+binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,Xstar=0,M=NULL,error='Delta',robust=FALSE){
   #lm, as.formula, quantile in stats, colSds in matrixStats
   interaction=mediator*exposure
   glmout=data.frame(outcome)
@@ -1039,7 +1039,7 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
 
   m=ncol(glmdata)-2
   r=ncol(glmdata)
-  outreg=robust::glmRob(f,data=glmdata,family=poisson())
+  outreg=robust::glmRob(f,data=glmdata,family=stats::poisson())
 
   if (!is.null(confounder)){
     if (is.null(C)){
@@ -1484,7 +1484,7 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
     for (i in 1:n){
       datab[[i]]=sample(1:nrow(glmdata),replace=T)
       datab2[[i]]=glmdata[datab[[i]],]
-      outregb[[i]]=robust::glmRob(f,data=datab2[[i]],family=poisson())
+      outregb[[i]]=robust::glmRob(f,data=datab2[[i]],family=stats::poisson())
       if (is.null(confounder)){
         medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=datab2[[i]][["exposure"]],print=F)
         RRNDEb[[i]]=((exp(outregb[[i]]$coefficients[[2]]*X))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar)+
@@ -1616,7 +1616,7 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
 #'     #Example using delta method
 #'     ziout=zioutlmmed(outcome=mzipmed_data$ziY1,mediator=mzipmed_data$lmM,
 #'                  exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-#'                  mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0)
+#'                  mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0)
 #'
 #'    #Example using boostrapping, 20 iterations used for succinctness
 #'    ziout2=zioutlmmed(outcome=mzipmed_data$ziY1,mediator=mzipmed_data$lmM,
@@ -1624,7 +1624,7 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
 #'                  mzipmed_data$C2),error="Boot",n=20)
 #' @export
 
-zioutlmmed=function(outcome,mediator,exposure,confounder=NULL,X=1,Xstar=0,error='Delta',n=1000,robust=F){
+zioutlmmed=function(outcome,mediator,exposure,confounder=NULL,X=1,Xstar=0,error='Delta',n=1000,robust=FALSE){
   lmout=data.frame(mediator)
   if (is.null(confounder)){
     lmpred=data.frame(exposure)
@@ -1814,10 +1814,10 @@ zioutlmmed=function(outcome,mediator,exposure,confounder=NULL,X=1,Xstar=0,error=
 #' @examples
 #' zimout=zioutlmmedint(outcome=mzipmed_data$ziY1,mediator=mzipmed_data$lmM,
 #'              exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-#'              mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0,M=NULL,C=NULL)
+#'              mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,M=NULL,C=NULL)
 #' @export
 
-zioutlmmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X=1,Xstar=0,C=NULL,error='Delta',robust=F){
+zioutlmmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X=1,Xstar=0,C=NULL,error='Delta',robust=FALSE){
   interaction=mediator*exposure
   lmout=data.frame(mediator)
   if (is.null(confounder)){
@@ -2217,7 +2217,7 @@ zioutlmmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X
 #'     #Example using delta method
 #'     ziout=zioutbinmed(outcome=mzipmed_data$ziY2,mediator=mzipmed_data$binM,
 #'                    exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-#'                    mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0)
+#'                    mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0)
 #'
 #'     #Example using bootstrapping with 20 iterations
 #'     ziout2=zioutbinmed(outcome=mzipmed_data$ziY2,mediator=mzipmed_data$binM,
@@ -2225,7 +2225,7 @@ zioutlmmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X
 #'                    mzipmed_data$C2),error="Boot",n=20,C=c(0,0.5))
 #' @export
 
-zioutbinmed=function(outcome,mediator,exposure,confounder=NULL,n=1000,X=1,Xstar=0,C=NULL,error='Delta',robust=F){
+zioutbinmed=function(outcome,mediator,exposure,confounder=NULL,n=1000,X=1,Xstar=0,C=NULL,error='Delta',robust=FALSE){
   glmout=data.frame(mediator)
   if (is.null(confounder)){
     glmpred=data.frame(exposure)
@@ -2243,7 +2243,7 @@ zioutbinmed=function(outcome,mediator,exposure,confounder=NULL,n=1000,X=1,Xstar=
   f=stats::as.formula(paste(colnames(glmout),paste(colnames(glmpred),collapse="+"),sep="~"))
 
   #lm part of stats package
-  medreg=stats::glm(f,data=glmdata,family=binomial)
+  medreg=stats::glm(f,data=glmdata,family=stats::binomial)
   m=ncol(mzipdata)
 
   if (!is.null(confounder)){
@@ -2361,7 +2361,7 @@ zioutbinmed=function(outcome,mediator,exposure,confounder=NULL,n=1000,X=1,Xstar=
         outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]],confb[[i]]),print=F)
       }
 
-      medregb[[i]]=stats::glm(f,data=datab2[[i]],family=binomial)
+      medregb[[i]]=stats::glm(f,data=datab2[[i]],family=stats::binomial)
       RRDEb[[i]]=exp(outregb[[i]]$Aest[2]*(X-Xstar))
       if (is.null(confounder)){
         RRIEb[[i]]=((1+exp(medregb[[i]]$coefficients[[1]]+medregb[[i]]$coefficients[[2]]*Xstar))*
@@ -2459,10 +2459,10 @@ zioutbinmed=function(outcome,mediator,exposure,confounder=NULL,n=1000,X=1,Xstar=
 #' @examples
 #'     zimout=zioutbinmedint(outcome=mzipmed_data$ziY2,mediator=mzipmed_data$binM,
 #'                    exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-#'                    mzipmed_data$C2),error="Delta",robust=F,X=1,Xstar=0,M=NULL,C=NULL)
+#'                    mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,M=NULL,C=NULL)
 #' @export
 
-zioutbinmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X=1,Xstar=0,C=NULL,error='Delta',robust=F){
+zioutbinmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X=1,Xstar=0,C=NULL,error='Delta',robust=FALSE){
   #lm,quantile,as.formula in Stats
   #colSds in matrixStats
   interaction=mediator*exposure
@@ -2481,7 +2481,7 @@ zioutbinmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,
 
   f<-stats::as.formula(paste(colnames(glmout),paste(colnames(glmpred),collapse="+"),sep="~"))
 
-  medreg=stats::glm(f,data=glmdata,family=binomial)
+  medreg=stats::glm(f,data=glmdata,family=stats::binomial)
   r=ncol(glmdata)
 
   if (!is.null(confounder)){
@@ -2831,7 +2831,7 @@ zioutbinmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,
         outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]],datab2[[i]][["interaction"]],confb[[i]]),print=F)
       }
 
-      medregb[[i]]=stats::glm(f,data=datab2[[i]],family=binomial)
+      medregb[[i]]=stats::glm(f,data=datab2[[i]],family=stats::binomial)
 
       RRCDEb[[i]]=exp((outregb[[i]]$Aest[2]+outregb[[i]]$Aest[4]*M)*(X-Xstar))
       RRNDEb[[i]]=exp(outregb[[i]]$Aest[2]*(X-Xstar))*(1+exp(outregb[[i]]$Aest[3]+outregb[[i]]$Aest[4]*X+medregb[[i]]$coefficients[[1]]+medregb[[i]]$coefficients[[2]]*Xstar+sum(medregb[[i]][["coefficients"]][c(3:r)]*C)))/
