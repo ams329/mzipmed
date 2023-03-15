@@ -1,3 +1,8 @@
+# mzipmed 1.2.3
+
+-Removed package dependency 'boot'
+-Added citation for MZIP manuscript
+
 # mzipmed 1.2.2
 
 -Fixed some issues identified through R CMD check
