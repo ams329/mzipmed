@@ -1,3 +1,7 @@
+# mzipmed 1.2.4
+
+-Added contact information of package maintainer
+
 # mzipmed 1.2.3
 
 -Removed package dependency 'boot'

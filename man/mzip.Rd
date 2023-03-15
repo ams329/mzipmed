@@ -35,7 +35,7 @@ RobAlphaCov robust covariance matrix for the Poisson component of MZIP \cr
 RobCov robust covariance matrix
 }
 \description{
-This function uses Long et. al's(2014) MZIP model to allow you to fit counts variables
+This function uses the MZIP model to allow you to fit counts variables
 with excess zeroes
 while allowing for easy interpretations. This function assumes that
 the outcome and covariates are all the same sample size without missing

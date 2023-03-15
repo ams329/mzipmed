@@ -1,6 +1,6 @@
 Package: mzipmed
 Title: Mediation using MZIP model
-Version: 1.2.3
+Version: 1.2.4
 Authors@R: c(
     person(given = "Andrew",
            family = "Sims",
@@ -9,6 +9,7 @@ Authors@R: c(
            comment = c(ORCID = "0000-0001-8525-4381")),
 	person(given="Dustin",family="Long", role="aut"),
 	person(given="Leann",family="Long",role="aut"))
+Maintainer: Andrew Sims <ams329@uab.edu>
 Description: This package allows for mediation analysis to be conducted in cases where the mediator is a count
 	variable with excess zeroes. Using the counterfactual approach to mediation and the marginalized zero-inflated Poisson (MZIP) model (Long et al. 2014 <DOI:10.1002/sim6293>) we can obtain natural direct and indirects effects for the overall population.This package also allows for instantaenous variance estimation through delta method processes and for exposure-mediator interactions with 4-way decomposition of total effect.
 Encoding: UTF-8
