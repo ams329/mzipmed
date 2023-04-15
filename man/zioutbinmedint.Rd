@@ -67,9 +67,9 @@ IntmedCI is the CI for Intmed \cr
 RRTE is the total effect risk ratio \cr
 logRRTEse is the error of the total effect log risk ratio \cr
 RRTECI is the CI for the total effect risk ratio\cr
-OvInt is the overall additive interaction effect \cr
-OvIntse is the standard error for the additive interaction \cr
-OvIntCI is the confidence interval for the interaction effect \cr
+Int is the overall additive interaction effect \cr
+Intse is the standard error for the additive interaction \cr
+IntCI is the confidence interval for the interaction effect \cr
 PAINT is the proportion attributable to the interaction effect \cr
 PE is the proportion eliminated \cr
 PACDE is the proportion of the total effect due to neither mediation nor interaction \cr

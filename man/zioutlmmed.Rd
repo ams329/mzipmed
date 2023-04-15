@@ -64,8 +64,8 @@ have the same sample size. Binary variables must be dummy coded prior.
                  exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
                  mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0)
 
-   #Example using boostrapping, 20 iterations used for succinctness
+   #Example using boostrapping, 10 iterations used for succinctness
    ziout2=zioutlmmed(outcome=mzipmed_data$ziY1,mediator=mzipmed_data$lmM,
                  exposure=mzipmed_data$X, confounder=cbind(mzipmed_data$C1,
-                 mzipmed_data$C2),error="Boot",n=20)
+                 mzipmed_data$C2),error="Boot",n=10)
 }

@@ -17,7 +17,7 @@
 #'    Note: BFGS likelihood optimization was used for this R package
 #' @param y is the outcome variable
 #' @param pred is a vector of covariates (use cbind for multiple)
-#' @param print if =TRUE will give model parameters. Default =FALSE
+#' @param print if =TRUE will give model parameters estimates and overall mean relative risks. Default =FALSE
 #' @return The function will return a list of 22 elements.
 #'     In the list G(Gamma) refers to the excess zero/logistic part of the model \cr
 #'     and A(Alpha) refers to the Poisson/mean part of the model for example. \cr
@@ -40,6 +40,11 @@
 #' @examples
 #'     test=mzip(y=mzipmed_data$ziY1,pred=cbind(mzipmed_data$X,mzipmed_data$C1,
 #'               mzipmed_data$C2),print=FALSE)
+#'
+#'    \dontrun{
+#'    test= mzip(y=mzipmed_data$ziY1,pred=cbind(X=mzipmed_data$X,C1=mzipmed_data$C1,
+#'               C2=mzipmed_data$C2),print=TRUE)
+#'               }
 #' @export
 
 
@@ -153,8 +158,6 @@ mzip = function(y,pred,print=FALSE){
   ARobPval=ifelse(1-stats::pchisq(q=(alpha_hat/r_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])])^2,df=1)<.0001,"<.0001",round(1-stats::pchisq(q=(alpha_hat/r_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])])^2,df=1),digits=5))
 
 
-  if(print){cat("Gamma Estimates:",gamma_hat,'\n',"Alpha estimates:",alpha_hat,'\n',"M SE: ", m_se,'\n',"R SE:",r_se,'\n',"Gamma P-Value",GPval,'\n',"R Gamma P-Val",GRobPval,'\n',"Alpha P-Val",APval,'\n',"R Alpha P-Val",ARobPval,'\n')}
-
   output = list( Gest = gamma_hat,Aest = alpha_hat, GModelSE = m_se[1:dim(Z)[2]], GRobustSE = r_se[1:dim(Z)[2]],
                  AModelSE = m_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])], ARobustSE = r_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])],
                  GModelUpper = mupper[1:dim(Z)[2]], AModelUpper = mupper[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])],
@@ -170,9 +173,34 @@ mzip = function(y,pred,print=FALSE){
                  ARobustZpval = 2*(1-stats::pnorm(abs(alpha_hat/r_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])]))),
                  AlphaCov=aCov,Cov=Inv_inform,RobCov=robust,RobAlphaCov=RobaCov)
 
+  if(print){
+    name=data.frame(intercept,pred)
+    varname=colnames(name)
+    MZIP_Mean=data.frame(Variable=varname,Alpha_Estimate=round(output$Aest,digits=3),SE=round(output$AModelSE,digits=3),
+                         P_Value=round(output$AModelZpval,digits=4),Robust_SE=round(output$ARobustSE,digits=3),
+                         Robust_P_Value=round(output$ARobustZpval,digits=4))
+    print("Overall Mean Estimates from MZIP")
+    print(MZIP_Mean)
+
+    MZIP_ExcessZero=data.frame(Variable=varname,Gamma_Estimate=round(output$Gest,digits=3),SE=round(output$GModelSE,digits=3),
+                               P_Value=round(output$GModelZpval,digits=4),Robust_SE=round(output$GRobustSE,digits=3),
+                               Robust_P_Value=round(output$GRobustZpval,digits=4))
+    print("Excess Zero Estimates from MZIP")
+    print(MZIP_ExcessZero)
+
+    rel_risk=exp(output$Aest)
+    rrlowci=exp(output$AModelLower)
+    rruppci=exp(output$AModelUpper)
+    rrroblowci=exp(output$ARobustLower)
+    rrrobuppci=exp(output$ARobustUpper)
+    Relative_Risk=data.frame(Variable=varname,rel_risk=round(rel_risk,digits=3),
+                             Lower_CI=round(rrlowci,digits=3),Upper_CI=round(rruppci,digits=3),
+                             RobLower_CI=round(rrroblowci,digits=3),RobUpper_CI=round(rrrobuppci,digits=3))
+    print("Overall Mean Relative Risk Estimates")
+    print(Relative_Risk)
+  }
   return(output)
 }
-
 
 
 
@@ -213,10 +241,10 @@ mzip = function(y,pred,print=FALSE){
 #'                  exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
 #'                  mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0)
 #'
-#'     #Example using bootstrapping, 20 iterations used for succinctness
+#'     #Example using bootstrapping, 10 iterations used for succinctness
 #'     zimed2=lmoutzimed(outcome=mzipmed_data$lmY,mediator=mzipmed_data$ziM,
 #'                   exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-#'                    mzipmed_data$C2),error="Boot",n=20,C=c(0,0.5))
+#'                    mzipmed_data$C2),error="Boot",n=10,C=c(0,0.5))
 #' @export
 
 
@@ -364,6 +392,17 @@ lmoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,
 
   output=list(lm=outreg,mzip=medreg,NDE=DE,NIE=IE,NDEse=DEse,NIEse=IEse,NDEci=DECI,NIEci=IECI,
               TE=TE,TEse=TEse,TEci=TECI,PM=PM)
+
+  outprint=round(matrix(c(output$NDE,output$NDEse,output$NDEci[1],output$NDEci[2],
+                          output$NIE,output$NIEse,output$NIEci[1],output$NIEci[2],
+                          output$TE,output$TEse,output$TEci[1],output$TEci[2],
+                          output$PM,NA,NA,NA),nrow=4,byrow=TRUE),digits=3)
+  colnames(outprint)<-c("Estimate","SE","Lower CI","Upper CI")
+  rownames(outprint)<-c("Natural Direct Effect","Natural Indirect Effect","Total Effect","Proportion Mediated")
+  outprint<-as.table(outprint)
+  print(outprint)
+
+  return(output)
 }
 
 
@@ -409,10 +448,10 @@ lmoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,
 #'     TE is the total effect \cr
 #'     TEse is the error of the total effect \cr
 #'     TECI is the CI for the total effect \cr
-#'     OvInt is the overall additive interaction effect \cr
-#'     OvIntse is the standard error for the additive interaction \cr
-#'     OvIntCI is the confidence interval for the interaction effect \cr
-#'     PropInt is the proportion attributable to the interaction effect \cr
+#'     Int is the overall additive interaction effect \cr
+#'     Intse is the standard error for the additive interaction \cr
+#'     IntCI is the confidence interval for the interaction effect \cr
+#'     PAINT is the proportion attributable to the interaction effect \cr
 #'     PE is the proportion eliminated
 #' @examples
 #'    #Example with exposure-mediator interaction
@@ -716,8 +755,33 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
   output=list(lm=outreg,mzip=medreg,CDE=CDE,NDE=NDE,NIE=IE,CDEse=CDEse,CDECI=CDECI,NDEse=NDEse,NDECI=NDECI,NIEse=IEse,NIECI=IECI,
               Intref=Intref,Intrefse=Intrefse,IntrefCI=IntrefCI,Intmed=Intmed,Intmedse=Intmedse,IntmedCI=IntmedCI,
               PIE=PIE,PIEse=PIEse,PIECI=PIECI,TE=TE,TEse=TEse,TECI=TECI,
-              OvInt=OvInt,OvIntse=OvIntse,OvIntCI=OvIntCI,PM=PM,PropInt=PI, PE=PE)
-}
+              Int=OvInt,Intse=OvIntse,IntCI=OvIntCI,PM=PM,PAINT=PI, PE=PE)
+
+  outprint=round(matrix(c(output$NDE,output$NDEse,output$NDECI[1],output$NDECI[2],
+                          output$NIE,output$NIEse,output$NIECI[1],output$NIECI[2],
+                          output$TE,output$TEse,output$TECI[1],output$TECI[2],
+                          NA,NA,NA,NA,
+                          NA,NA,NA,NA,
+                          output$CDE,output$CDEse,output$CDECI[1],output$CDECI[2],
+                          output$PIE,output$PIEse,output$PIECI[1],output$PIECI[2],
+                          output$Intref,output$Intrefse,output$IntrefCI[1],output$IntrefCI[2],
+                          output$Intmed,output$Intmedse,output$IntmedCI[1],output$IntmedCI[2],
+                          output$Int,output$Intse,output$IntCI[1],output$IntCI[2],
+                          NA,NA,NA,NA,
+                          NA,NA,NA,NA,
+                          output$PM,NA,NA,NA,
+                          output$PE,NA,NA,NA,
+                          output$PAINT,NA,NA,NA),ncol=4,byrow=TRUE),digits=3)
+  colnames(outprint)<-c("Estimate","SE","Lower CI","Upper CI")
+  rownames(outprint)<-c("Natural Direct Effect","Natural Indirect Effect","Total Effect",
+                        "","4-way Decomposition","Controlled Direct Effect","Pure Indirect Effect",
+                        "Interactive Reference Effect","Interactive Mediation Effect","Total Additive Interaction",
+                        "","Proportions","Proportion Mediated","Proportion Eliminated","Proportion from Interaction")
+  outprint<-as.table(outprint)
+  print(outprint)
+
+  return(output)
+  }
 
 
 
@@ -762,10 +826,10 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
 #'                      exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
 #'                      mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0)
 #'
-#'     #Example using bootstrapping, 20 iterations are used for succinctness
+#'     #Example using bootstrapping, 10 iterations are used for succinctness
 #'     zimed2=binoutzimed(outcome=mzipmed_data$binY,mediator=mzipmed_data$ziM,
 #'                    exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-#'                    mzipmed_data$C2),error="Boot",n=20,C=c(0,0.5))
+#'                    mzipmed_data$C2),error="Boot",n=10,C=c(0,0.5))
 #' @export
 
 
@@ -960,6 +1024,17 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
 
   output=list(GLM=outreg,MZIP=medreg,RRNDE=RRDE,RRNIE=RRIE,PM=PM,logRRNDEse=logRRDEse,RRNDEci=RRDECI,logRRNIEse=logRRIEse,RRNIEci=RRIECI,
               RRTE=RRTE,logRRTEse=logRRTEse,RRTEci=RRTECI)
+
+  outprint=round(matrix(c(output$RRNDE,output$logRRNDEse,output$RRNDEci[1],output$RRNDEci[2],
+                          output$RRNIE,output$logRRNIEse,output$RRNIEci[1],output$RRNIEci[2],
+                          output$RRTE,output$logRRTEse,output$RRTEci[1],output$RRTEci[2],
+                          output$PM,NA,NA,NA),nrow=4,byrow=TRUE),digits=3)
+  colnames(outprint)<-c("Estimate","log SE","Lower CI","Upper CI")
+  rownames(outprint)<-c("Natural Direct Effect (RR)","Natural Indirect Effect (RR)","Total Effect (RR)","Proportion Mediated")
+  outprint<-as.table(outprint)
+  print(outprint)
+
+  return(output)
 }
 
 
@@ -1003,9 +1078,9 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
 #'     RRTE is the total effect risk ratio \cr
 #'     logRRTEse is the error of the total effect log risk ratio \cr
 #'     RRTECI is the CI for the total effect risk ratio\cr
-#'     OvInt is the overall additive interaction effect \cr
-#'     OvIntse is the standard error for the additive interaction \cr
-#'     OvIntCI is the confidence interval for the interaction effect \cr
+#'     Int is the overall additive interaction effect \cr
+#'     Intse is the standard error for the additive interaction \cr
+#'     IntCI is the confidence interval for the interaction effect \cr
 #'     PAINT is the proportion attributable to the interaction effect \cr
 #'     PE is the proportion eliminated \cr
 #'     PACDE is the proportion of the total effect due to neither mediation nor interaction \cr
@@ -1572,9 +1647,34 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
               logRRNDEse=logRRNDEse,logRRNIEse=logRRIEse,RRCDEci=RRCDECI,RRNDEci=RRNDECI,RRNIEci=RRIECI, PM=PM,
               Intref=RRIntref,Intrefse=RRIntrefse,Intrefci=RRIntrefCI, Intmed=RRIntmed,Intmedse=RRIntmedse,
               Intmedci=RRIntmedCI,RRPIE=RRPIE,logRRPIEse=logRRPIEse,RRPIEci=RRPIECI,
-              RRTE=RRTE,logRRTEse=logRRTEse,RRTEci=RRTECI,OvInt=RRInt,
-              OvIntse=RRIntse,OvIntci=RRIntCI,PE=PE,PACDE=PACDE,PAIntref=PAIntref,PAIntmed=PAIntmed,PAPIE=PAPIE,PAINT=PAINT,terr=terr)
-}
+              RRTE=RRTE,logRRTEse=logRRTEse,RRTEci=RRTECI,Int=RRInt,
+              Intse=RRIntse,Intci=RRIntCI,PE=PE,PACDE=PACDE,PAIntref=PAIntref,PAIntmed=PAIntmed,PAPIE=PAPIE,PAINT=PAINT,terr=terr)
+
+  outprint=round(matrix(c(output$RRNDE,output$logRRNDEse,output$RRNDEci[1],output$RRNDEci[2],
+                          output$RRNIE,output$logRRNIEse,output$RRNIEci[1],output$RRNIEci[2],
+                          output$RRTE,output$logRRTEse,output$RRTEci[1],output$RRTEci[2],
+                          NA,NA,NA,NA,
+                          NA,NA,NA,NA,
+                          output$RRCDE,output$logRRCDEse,output$RRCDEci[1],output$RRCDEci[2],
+                          output$RRPIE,output$logRRPIEse,output$RRPIEci[1],output$RRPIEci[2],
+                          output$Intref,output$Intrefse,output$Intrefci[1],output$Intrefci[2],
+                          output$Intmed,output$Intmedse,output$Intmedci[1],output$Intmedci[2],
+                          output$Int,output$Intse,output$Intci[1],output$Intci[2],
+                          NA,NA,NA,NA,
+                          NA,NA,NA,NA,
+                          output$PM,NA,NA,NA,
+                          output$PE,NA,NA,NA,
+                          output$PAINT,NA,NA,NA),ncol=4,byrow=TRUE),digits=3)
+  colnames(outprint)<-c("Estimate","log SE","Lower CI","Upper CI")
+  rownames(outprint)<-c("Natural Direct Effect (RR)","Natural Indirect Effect (RR)","Total Effect (RR)",
+                        "","4-way Decomposition","Controlled Direct Effect (RR)","Pure Indirect Effect (RR)",
+                        "Interactive Reference Effect","Interactive Mediation Effect","Total Additive Interaction",
+                        "","Proportions","Proportion Mediated","Proportion Eliminated","Proportion from Interaction")
+  outprint<-as.table(outprint)
+  print(outprint)
+
+  return(output)
+  }
 
 
 
@@ -1618,10 +1718,10 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
 #'                  exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
 #'                  mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0)
 #'
-#'    #Example using boostrapping, 20 iterations used for succinctness
+#'    #Example using boostrapping, 10 iterations used for succinctness
 #'    ziout2=zioutlmmed(outcome=mzipmed_data$ziY1,mediator=mzipmed_data$lmM,
 #'                  exposure=mzipmed_data$X, confounder=cbind(mzipmed_data$C1,
-#'                  mzipmed_data$C2),error="Boot",n=20)
+#'                  mzipmed_data$C2),error="Boot",n=10)
 #' @export
 
 zioutlmmed=function(outcome,mediator,exposure,confounder=NULL,X=1,Xstar=0,error='Delta',n=1000,robust=FALSE){
@@ -1756,6 +1856,17 @@ zioutlmmed=function(outcome,mediator,exposure,confounder=NULL,X=1,Xstar=0,error=
 
   output=list(MZIP=outreg,LM=medreg,RRNDE=RRDE,RRNIE=RRIE,PM=PM,logRRNDEse=logRRDEse,RRNDEci=RRDECI,logRRNIEse=logRRIEse,RRNIEci=RRIECI,
               RRTE=RRTE,logRRTEse=logRRTEse,RRTEci=RRTECI)
+
+  outprint=round(matrix(c(output$RRNDE,output$logRRNDEse,output$RRNDEci[1],output$RRNDEci[2],
+                          output$RRNIE,output$logRRNIEse,output$RRNIEci[1],output$RRNIEci[2],
+                          output$RRTE,output$logRRTEse,output$RRTEci[1],output$RRTEci[2],
+                          output$PM,NA,NA,NA),nrow=4,byrow=TRUE),digits=3)
+  colnames(outprint)<-c("Estimate","log SE","Lower CI","Upper CI")
+  rownames(outprint)<-c("Natural Direct Effect (RR)","Natural Indirect Effect (RR)","Total Effect (RR)","Proportion Mediated")
+  outprint<-as.table(outprint)
+  print(outprint)
+
+  return(output)
 }
 
 
@@ -1801,9 +1912,9 @@ zioutlmmed=function(outcome,mediator,exposure,confounder=NULL,X=1,Xstar=0,error=
 #'     RRTE is the total effect risk ratio \cr
 #'     logRRTEse is the error of the total effect log risk ratio \cr
 #'     RRTECI is the CI for the total effect risk ratio\cr
-#'     OvInt is the overall additive interaction effect \cr
-#'     OvIntse is the standard error for the additive interaction \cr
-#'     OvIntCI is the confidence interval for the interaction effect \cr
+#'     Int is the overall additive interaction effect \cr
+#'     Intse is the standard error for the additive interaction \cr
+#'     IntCI is the confidence interval for the interaction effect \cr
 #'     PAINT is the proportion attributable to the interaction effect \cr
 #'     PE is the proportion eliminated \cr
 #'     PACDE is the proportion of the total effect due to neither mediation nor interaction \cr
@@ -2218,11 +2329,12 @@ zioutlmmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X
 #'     ziout=zioutbinmed(outcome=mzipmed_data$ziY2,mediator=mzipmed_data$binM,
 #'                    exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
 #'                    mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0)
-#'
-#'     #Example using bootstrapping with 20 iterations
+#' \dontrun{
+#'     #Example using bootstrapping with 10 iterations
 #'     ziout2=zioutbinmed(outcome=mzipmed_data$ziY2,mediator=mzipmed_data$binM,
 #'                    exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-#'                    mzipmed_data$C2),error="Boot",n=20,C=c(0,0.5))
+#'                    mzipmed_data$C2),error="Boot",n=10,C=c(0,0.5))
+#'    }
 #' @export
 
 zioutbinmed=function(outcome,mediator,exposure,confounder=NULL,n=1000,X=1,Xstar=0,C=NULL,error='Delta',robust=FALSE){
@@ -2399,6 +2511,17 @@ zioutbinmed=function(outcome,mediator,exposure,confounder=NULL,n=1000,X=1,Xstar=
 
   output=list(MZIP=outreg,GLM=medreg,RRNDE=RRDE,RRNIE=RRIE,PM=PM,logRRNDEse=logRRDEse,RRNDEci=RRDECI,logRRNIEse=logRRIEse,RRNIEci=RRIECI,
               RRTE=RRTE,logRRTEse=logRRTEse,RRTEci=RRTECI)
+
+  outprint=round(matrix(c(output$RRNDE,output$logRRNDEse,output$RRNDEci[1],output$RRNDEci[2],
+                          output$RRNIE,output$logRRNIEse,output$RRNIEci[1],output$RRNIEci[2],
+                          output$RRTE,output$logRRTEse,output$RRTEci[1],output$RRTEci[2],
+                          output$PM,NA,NA,NA),nrow=4,byrow=TRUE),digits=3)
+  colnames(outprint)<-c("Estimate","log SE","Lower CI","Upper CI")
+  rownames(outprint)<-c("Natural Direct Effect (RR)","Natural Indirect Effect (RR)","Total Effect (RR)","Proportion Mediated")
+  outprint<-as.table(outprint)
+  print(outprint)
+
+  return(output)
 }
 
 
@@ -2446,9 +2569,9 @@ zioutbinmed=function(outcome,mediator,exposure,confounder=NULL,n=1000,X=1,Xstar=
 #'     RRTE is the total effect risk ratio \cr
 #'     logRRTEse is the error of the total effect log risk ratio \cr
 #'     RRTECI is the CI for the total effect risk ratio\cr
-#'     OvInt is the overall additive interaction effect \cr
-#'     OvIntse is the standard error for the additive interaction \cr
-#'     OvIntCI is the confidence interval for the interaction effect \cr
+#'     Int is the overall additive interaction effect \cr
+#'     Intse is the standard error for the additive interaction \cr
+#'     IntCI is the confidence interval for the interaction effect \cr
 #'     PAINT is the proportion attributable to the interaction effect \cr
 #'     PE is the proportion eliminated \cr
 #'     PACDE is the proportion of the total effect due to neither mediation nor interaction \cr
@@ -2898,7 +3021,32 @@ zioutbinmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,
   output=list(MZIP=outreg,LM=medreg,RRCDE=RRCDE,RRNDE=RRNDE,RRNIE=RRIE,logRRCDEse=logRRCDEse,
               logRRNDEse=logRRNDEse,logRRNIEse=logRRIEse,RRCDEci=RRCDECI,RRNDEci=RRNDECI,RRNIEci=RRIECI, PM=PM,
               Intref=RRIntref,Intrefse=RRIntrefse,Intrefci=RRIntrefCI,Intmed=RRIntmed,Intmedse=RRIntmedse,
-              Intmedci=RRIntmedCI,RRPIE=RRPIE,logRRPIE=logRRPIE,RRPIEci=RRPIECI,
+              Intmedci=RRIntmedCI,RRPIE=RRPIE,logRRPIEse=logRRPIEse,RRPIEci=RRPIECI,
               RRTE=RRTE,logRRTEse=logRRTEse,RRTEci=RRTECI,Int=RRInt,
               Intse=RRIntse,Intci=RRIntCI,PE=PE,PACDE=PACDE,PAIntref=PAIntref,PAIntmed=PAIntmed,PAPIE=PAPIE,PAINT=PAINT,terr=terr)
+
+  outprint=round(matrix(c(output$RRNDE,output$logRRNDEse,output$RRNDEci[1],output$RRNDEci[2],
+                          output$RRNIE,output$logRRNIEse,output$RRNIEci[1],output$RRNIEci[2],
+                          output$RRTE,output$logRRTEse,output$RRTEci[1],output$RRTEci[2],
+                          NA,NA,NA,NA,
+                          NA,NA,NA,NA,
+                          output$RRCDE,output$logRRCDEse,output$RRCDEci[1],output$RRCDEci[2],
+                          output$RRPIE,output$logRRPIEse,output$RRPIEci[1],output$RRPIEci[2],
+                          output$Intref,output$Intrefse,output$Intrefci[1],output$Intrefci[2],
+                          output$Intmed,output$Intmedse,output$Intmedci[1],output$Intmedci[2],
+                          output$Int,output$Intse,output$Intci[1],output$Intci[2],
+                          NA,NA,NA,NA,
+                          NA,NA,NA,NA,
+                          output$PM,NA,NA,NA,
+                          output$PE,NA,NA,NA,
+                          output$PAINT,NA,NA,NA),ncol=4,byrow=TRUE),digits=3)
+  colnames(outprint)<-c("Estimate","log SE","Lower CI","Upper CI")
+  rownames(outprint)<-c("Natural Direct Effect (RR)","Natural Indirect Effect (RR)","Total Effect (RR)",
+                        "","4-way Decomposition","Controlled Direct Effect (RR)","Pure Indirect Effect (RR)",
+                        "Interactive Reference Effect","Interactive Mediation Effect","Total Additive Interaction",
+                        "","Proportions","Proportion Mediated","Proportion Eliminated","Proportion from Interaction")
+  outprint<-as.table(outprint)
+  print(outprint)
+
+  return(output)
 }

@@ -11,7 +11,7 @@ mzip(y, pred, print = FALSE)
 
 \item{pred}{is a vector of covariates (use cbind for multiple)}
 
-\item{print}{if =TRUE will give model parameters. Default =FALSE}
+\item{print}{if =TRUE will give model parameters estimates and overall mean relative risks. Default =FALSE}
 }
 \value{
 The function will return a list of 22 elements.
@@ -49,4 +49,9 @@ Note: BFGS likelihood optimization was used for this R package
 \examples{
     test=mzip(y=mzipmed_data$ziY1,pred=cbind(mzipmed_data$X,mzipmed_data$C1,
               mzipmed_data$C2),print=FALSE)
+
+   \dontrun{
+   test= mzip(y=mzipmed_data$ziY1,pred=cbind(X=mzipmed_data$X,C1=mzipmed_data$C1,
+              C2=mzipmed_data$C2),print=TRUE)
+              }
 }

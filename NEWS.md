@@ -1,11 +1,26 @@
+# mzipmed 1.2.6
+-Added R console output for mediation functions and beautified for MZIP function
+
+---
+
+# mzipmed 1.2.5
+
+-Made some edits to the description file to satisfy CRAN requirements
+-Various grammatical fixes to documentation
+
+---
+
 # mzipmed 1.2.4
 
 -Added contact information of package maintainer
 
+---
 # mzipmed 1.2.3
 
 -Removed package dependency 'boot'
 -Added citation for MZIP manuscript
+
+---
 
 # mzipmed 1.2.2
 

@@ -67,10 +67,10 @@ IntmedCI is the CI for Intmed \cr
 TE is the total effect \cr
 TEse is the error of the total effect \cr
 TECI is the CI for the total effect \cr
-OvInt is the overall additive interaction effect \cr
-OvIntse is the standard error for the additive interaction \cr
-OvIntCI is the confidence interval for the interaction effect \cr
-PropInt is the proportion attributable to the interaction effect \cr
+Int is the overall additive interaction effect \cr
+Intse is the standard error for the additive interaction \cr
+IntCI is the confidence interval for the interaction effect \cr
+PAINT is the proportion attributable to the interaction effect \cr
 PE is the proportion eliminated
 }
 \description{

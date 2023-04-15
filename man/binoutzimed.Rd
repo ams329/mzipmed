@@ -70,8 +70,8 @@ can cause issues in a mediation framework (see Vanderweele 2016).
                      exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
                      mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0)
 
-    #Example using bootstrapping, 20 iterations are used for succinctness
+    #Example using bootstrapping, 10 iterations are used for succinctness
     zimed2=binoutzimed(outcome=mzipmed_data$binY,mediator=mzipmed_data$ziM,
                    exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-                   mzipmed_data$C2),error="Boot",n=20,C=c(0,0.5))
+                   mzipmed_data$C2),error="Boot",n=10,C=c(0,0.5))
 }
