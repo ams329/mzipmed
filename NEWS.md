@@ -1,3 +1,7 @@
+# mzipmed 1.2.7
+-Added R console output for `zioutlmmedint` that was accidentally left out prior
+
+---
 # mzipmed 1.2.6
 -Added R console output for mediation functions and beautified for MZIP function
 

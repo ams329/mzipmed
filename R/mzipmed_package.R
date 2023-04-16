@@ -2286,7 +2286,32 @@ zioutlmmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X
               Intmedci=RRIntmedCI,RRPIE=RRPIE,logRRPIEse=logRRPIEse,RRPIEci=RRPIECI,
               RRTE=RRTE,logRRTEse=logRRTEse,RRTEci=RRTECI,Int=RRInt,
               Intse=RRIntse,Intci=RRIntCI,PE=PE,PACDE=PACDE,PAIntref=PAIntref,PAIntmed=PAIntmed,PAPIE=PAPIE,PAINT=PAINT,terr=terr)
-}
+
+  outprint=round(matrix(c(output$RRNDE,output$logRRNDEse,output$RRNDEci[1],output$RRNDEci[2],
+                          output$RRNIE,output$logRRNIEse,output$RRNIEci[1],output$RRNIEci[2],
+                          output$RRTE,output$logRRTEse,output$RRTEci[1],output$RRTEci[2],
+                          NA,NA,NA,NA,
+                          NA,NA,NA,NA,
+                          output$RRCDE,output$logRRCDEse,output$RRCDEci[1],output$RRCDEci[2],
+                          output$RRPIE,output$logRRPIEse,output$RRPIEci[1],output$RRPIEci[2],
+                          output$Intref,output$Intrefse,output$Intrefci[1],output$Intrefci[2],
+                          output$Intmed,output$Intmedse,output$Intmedci[1],output$Intmedci[2],
+                          output$Int,output$Intse,output$Intci[1],output$Intci[2],
+                          NA,NA,NA,NA,
+                          NA,NA,NA,NA,
+                          output$PM,NA,NA,NA,
+                          output$PE,NA,NA,NA,
+                          output$PAINT,NA,NA,NA),ncol=4,byrow=TRUE),digits=3)
+  colnames(outprint)<-c("Estimate","log SE","Lower CI","Upper CI")
+  rownames(outprint)<-c("Natural Direct Effect (RR)","Natural Indirect Effect (RR)","Total Effect (RR)",
+                        "","4-way Decomposition","Controlled Direct Effect (RR)","Pure Indirect Effect (RR)",
+                        "Interactive Reference Effect","Interactive Mediation Effect","Total Additive Interaction",
+                        "","Proportions","Proportion Mediated","Proportion Eliminated","Proportion from Interaction")
+  outprint<-as.table(outprint)
+  print(outprint)
+
+  return(output)
+  }
 
 
 
