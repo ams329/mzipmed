@@ -1,0 +1,140 @@
+---
+title: "Introduction to the `mzipmed` R package"
+author: "Andrew Sims"
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Introduction to the `mzipmed` R package}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+In this document we explain the main features of the `mzipmed` package through examples. This package performs mediation analysis when either the outcome or mediator are a count variable with many zeroes, called a zero-inflated count. Specifically this package merges the concepts of the counterfactual approach to mediation and the marginalized zero-inflated Poisson (MZIP) model to obtain mediation effects when there are excess zeroes. Additional information on statistical methodology is provided elsewhere (Long et al. 2014, Vanderweele 2016)
+
+
+# Brief introduction to counterfactual approach to mediation
+Mediation analysis is used to explore how a variable called a mediator helps explain the relationship between some exposure and an outcome. Many popular mediation method such as the difference and product methods collapse when there are interaction effects or the outcome is not a continuous variable. The counterfactual approach to mediation involves finding mediation effects through closed-form expressions that is extendable to many different classes of models and can account for interaction effects while minimizing computation speed. If we let $Y$ be our outcome, $M$ be our mediator, $X$ be our exposure, and **$C$** be a vector of covariates. The counterfactual approach involves fitting two regression models, one for the outcome and one for the mediator. 
+
+$$g(E[Y|X=x,M=m,\textbf{C=c}])=g(E[Y|x,m,c])=\tau_0+\tau_1x+\tau_2m+\mathbf{ \tau_4'c}$$
+$$h(E[M|X=x,\textbf{C=c}])=h(E[M|x,c])=\theta_0+\theta_1x++\mathbf{ \theta_4'c}$$
+Where $g$ and $h$ are link functions associated with the outcome and mediator model respectively and $\tau$ and $\theta$ are the parameter estimates associated with the outcome and mediator model respectively. Using parameter estimates from these equations mediation effects can be estimated including the total effect (TE) or the overall effect of the exposure on the outcome, natural direct effect (NDE) or the effect of the exposure on the outcome not operating through the mediator, and natural indirect effect (NIE) or the effect operating through the mediator. Basic formulas for these equations are as follows
+$$NDE=\sum_m(E[Y|x,m,c]-E[Y|x^*,m,c])P(m|x^*,c)$$
+$$NIE=\sum_m(E[Y|x,m,c])(P(m|x,c)-P(m|x^*,c))$$
+Where $x^*$ is a fixed value of the exposure to be compared to $x$. The total effect can then be computed as the sum of NDE and NIE on a difference scale and the product of the NDE and NIE if the outcome is on a ratio scale.
+
+
+
+# Brief overview of MZIP
+Standard count regression models such as Poisson provide biased parameter estimates and popular count models like the zero-inflated Poisson model do not directly provide population average parameter estimates. In response the marginalized zero-inflated Poisson (MZIP) model was created. MZIP is a mixture distribution model that models the probability of being an excess zero from a Bernoulli distribution with probability $\psi_i$ and the overall mean of the distribution from a Poisson distribution with mean $\nu_i$, where $\nu_i$ is the product of the mean of the non-excess zeroes, $\mu_i$, and $1-\psi_i$. MZIP is fit by
+$$logit(\psi_i)=\mathbf{Z_i'\gamma}$$
+$$log(\nu_i)=\mathbf{Z_i'\alpha}$$
+Where $\alpha$ and $gamma$ are $(p\times 1)$ column vectors of parameters associated with the overall population mean and probability of being an excess zero models. $\mathbf{Z_i}$ is a $(p\times 1)$ vector of covariates for the i-th individual. for the excess zero and overall population mean components of MZIP. Exponentiating $\alpha$ parameters yield incident-density or risk ratio interpretations equivalent to Poisson model interpretations.
+
+# `mzipmed_data` overview
+Included in this package is a simulated dataset for examples called `mzipmed_data`. This dataset includes 500 observations of 10 variables. These variables are
+
+* `X` is a binary exposure simulated from a Bernoulli distribution with p=0.5
+* `C1` is a covariate that follows a standard normal distribution
+* `C2` is a second covariate from a ~Beta(2,2)
+* `ziM` is a zero-inflated count mediator simulated from the predictors `X`,`C1`, and `C2`
+* `lmM` is a continuous mediator based on the predictors with error term ~N(0,4)
+* `binM` is a binary mediator based on the predictors simulated with a Bernoulli distribution
+* `lmY` is a continuous outcome simulated from `ziM` and the predictors with error term ~N(0,4)
+* `binY` is a binary outcome similated from `ziM` and the predictors with a Bernoulli distribution
+* `ziY1` is a zero-inflated count outcome simulated from `lmM` and the predictors
+* `ziY2` is a another zero-inflated count outcome, but instead uses `binM` and the predictors
+
+# `mzip()` function for analysis with zero-inflated count variables
+The `mzipmed` package is the first utilization of the MZIP model in R. MZIP can be performed with the `mzip()` function. For example, assume we would like to observe how our `X` is associated with `ziY1`from `mzipmed_data`. First we need to load the `mzipmed` package
+```{r echo=TRUE, message=FALSE, warning=FALSE,eval=TRUE}
+library(mzipmed)
+```
+
+Next we can use the `mzip()` function to conduct this analysis. First we need to specify the `y` argument which in our case `y=mzipmed_data$ziY1`. For the covariates we specify the `pred` argument. For a single predictor we could use `pred=mzipmed_data$X`, but suppose we adjust for `C1` and `C2` then we bind all the predictors into a vector using the `cbind()` function in base R, e.g. `pred=cbind(mzipmed_data$X,mzipmed_data$C1,mzipmed_data$C2)`. If we want our covariates named in the outcome we need to specify within the `cbind()` function, e.g. `pred=cbind(X=mzipmed_data$X,C1=mzipmed_data$C1,C2=mzipmed_data$C2)` otherwise they will be named X1,X2,... in order they are included. The final argument is `print=FALSE`, if `print=TRUE` parameter estimates, standard errors, p-values, and risk ratios will be printed into the R console. The default is FALSE. Using this example
+
+```{r echo=TRUE}
+test=mzip(y=mzipmed_data$ziY1, pred=cbind(X=mzipmed_data$X,C1=mzipmed_data$C1,C2=mzipmed_data$C2), print=TRUE)
+```
+
+We find no evidence that `X` is significantly associated with the outcome and we obtain a relative risk estimate of 1.28. The robust standard errors are often used if over-dispersion is a concern as they typically provide wider confidence intervals. In the `test` output one can also find covariance matrices, parameter estimate confidence intervals, etc.
+
+
+# Mediation with Zero-Inflated Count Outcomes
+
+## Continuous Mediators
+Assume we want to examine how a continuous mediator explains the relationship between an exposure and a zero-inflated count mediator. We would fit the following models
+$$logit(\psi_i|x,m,c)=\gamma_0+\gamma_1x+\gamma_2m+\mathbf{\gamma_4'c}$$
+$$log(\nu_i|x,m,c)=\alpha_0+\alpha_1x+\alpha_2m+\mathbf{\alpha_4'c}$$
+$$E(M|x,c)=\theta_0+\theta_1x+\mathbf{\theta_4'c}$$
+The overall mean outcome model is on a relative risk (RR) scale so NDE and NIE estimates will be as well and can be computed by
+$$RR^{NDE}=e^{\alpha_1(x-x^*)}$$
+$$RR^{NIE}=e^{\alpha_2\theta_1(x-x^*)}$$
+To conduct this mediation analysis in the `mzipmed` package we would use the `zioutlmmed()` function. This functions only allows for a single outcome, mediator, and exposure at a time. Using the `mzipmed` data let $x=X$ and $M=lmM$ and our outcome is `ziY1`. We specify these variables with the following arguments `outcome=mzipmed_data$ziY1`,`mediator=mzipmed_data$lmM`, `exposure=mzipmed_data$X`, and for the covariates/confounders `confounder=cbind(mzipmed_data$C1,mzipmed_data$C2`). Standard errors can be computed using bootstrapping which is robust, but computationally intensive or via delta method for instantaneous variance estimation. For delta method use `error="Delta"` which is the default and for bootstrap use `error="Boot"`. For robust standard errors to be used with the delta method for concerns of over-dispersion set `robust=TRUE`, FALSE is the default. We also need to input values of the exposure to compare to using the `X` and `Xstar` arguments, for a dummy-coded binary exposure and by default we let `X=1` and `Xstar=0`. For bootstrap standard error you can specify the number of iterations, by default there are 1000 repetitions, `n=1000`. As an example 
+
+```{r echo=TRUE}
+ziout=zioutlmmed(outcome=mzipmed_data$ziY1,mediator=mzipmed_data$lmM,exposure=mzipmed_data$X, confounder=cbind(mzipmed_data$C1,mzipmed_data$C2), error="Delta", robust=FALSE,X=1,Xstar=0,n=1000)
+```
+Printed into the R console are the relative risks of the NDE, NIE, and TE along with their standard errors and confidence intervals and the proportion mediated. From the ziout data we see no evidence of a significant direct effect of the exposure on the outcome as the relative risk includes 1 in the confidence interval, but do see that a significant effect operating through the mediator since 1 is not in the confidence interval. Additional information in the ziout in the R global environment include all information included in the outcome model using `mzip()` and the mediator model using `lm()` from the `stats` package in base R.
+
+## Binary Mediators
+The `mzip` package also includes a function for mediation with zero-inflated count outcomes and binary mediators. For this procedure a MZIP model is fit for the outcome and a logistic regression is fit for the mediator model using the `glm()` function in base R. The aforementioned function is called `zioutbinmed()`. The NDE is the same as with continuous mediators, but the NIE is now conditional on covariates
+
+$$\frac{([1+e^{\theta_0+\theta_1x^*+\mathbf{\theta_2'c}}][1+e^{\alpha_2 \theta_0+\theta_1x+\mathbf{\theta_2'c}}])}{([1+e^{\theta_0+\theta_1x+\mathbf{\theta_2'c}}][1+e^{\alpha_2\theta_0+\theta_1x^*+\mathbf{\theta_2'c}}])}$$
+Therefore fixed values of the covariates are required. The input for the `zioutbinmed()` function is the same as in the previous section, but also includes an argument to specify these covariates called `C`. By default, `C=NULL` each covariate will be fixed at its mean value to approximate marginal estimates, but can be changed using for example `C=c(0,2)`. Excluding that the input and output for this function is the same as with the a continuous mediator and we now use `outcome=mzipmed_data$ziY2` for the outcome variable.
+
+```{r}
+zioutb=zioutbinmed(outcome=mzipmed_data$ziY2,mediator=mzipmed_data$binM,  exposure=mzipmed_data$X, confounder=cbind(mzipmed_data$C1,mzipmed_data$C2), error="Delta",  robust=FALSE,X=1, Xstar=0, n=1000, C=NULL)
+
+```
+
+# Mediation with Zero-Inflated Count Mediators
+
+## Continuous Outcomes with ZI Mediators
+Assume we have a continuous outcome, $Y$, and a zero-inflated count mediator $M$. We fit a linear regression outcome model and a MZIP mediator model as follows:
+$$E(Y|x,m,c)=\beta_0+\beta_1x+\beta_2m+\mathbf{\beta_4'c}$$
+$$logit(\psi_i(M)|x,c)=\gamma_0+\gamma_1x+\mathbf{\gamma_4'c}$$
+$$log(\nu_i(M)|x,c)=\alpha_0+\alpha_1x+\mathbf{\alpha_4'c}$$
+Because the outcome is on a risk difference scale, so will the NDE and NIE estimates which can be derived by
+$$\beta_1(x-x^*)$$
+$$\beta_2[e^{\alpha_0+\alpha_1x+\mathbf{\alpha_4'c}}-e^{\alpha_0+\alpha_1x^*+\mathbf{\alpha_4'c}}]$$
+For this mediation analysis the `lmoutzimed()` function could be used. For example with the `mzipmed_data` we assume the same set of predictors as in the section with ZI outcomes, but now let `mediator=mzipmed_data$ziM` and `outcome=mzipmed_data=lmY`. Input required is the same as in the section for ZI outcomes with the `C` argument shown in the ZI outcomes with binary mediators example and this function uses the `lm()` function for the outcome variable and the `mzip()` function for the mediator model with all effects being on a difference scale. For example,
+
+```{r}
+zimed=lmoutzimed(outcome=mzipmed_data$lmY,mediator=mzipmed_data$ziM, exposure=mzipmed_data$X, confounder=cbind(mzipmed_data$C1,mzipmed_data$C2),error="Delta", robust=FALSE,X=1,Xstar=0,C=NULL)
+
+```
+
+After running the function we can see in the R console that the NDE is statistically significant as the risk difference does not include 0 in the confidence interval, but the NIE is not significant because it includes 0. Additional information on the individual outcome and mediator models can be found in the `zimed` data now in the global environment.
+
+## Binary outcomes with ZI Mediators
+For binary outcomes we do not use a logistic regression outcome model because of the non-collapsability of logit-links makes deriving closed form expression of NDE and NIE impossible so in this package we use a Poisson outcome model with a log-link with robust variance estimates using the `glmrob()` function in the `robust` package. Assuming the same input as in the section for continuous outcomes, but now `outcome=mzipmed_data$binY`and NDE and NIE estimates will now be on a ratio scale because of the Poisson outcome model. We will not show the formula for the risk ratios of NDE and NIE because they are extremely long, these formulas can be provided in future publications or via contacting the author directly. For this scenario we will use the `binoutzimed()` function. For example,
+
+```{r}
+zimedb=binoutzimed(outcome=mzipmed_data$binY,mediator=mzipmed_data$ziM, exposure=mzipmed_data$X, confounder=cbind(mzipmed_data$C1,mzipmed_data$C2),error="Delta", robust=FALSE,X=1,Xstar=0,C=NULL)
+
+```
+
+Input and output are all the same as in the section with continuous outcomes, except effects being on a ratio scale. For the zimedb example we find a significant NDE as 1 is not included in the risk ratio confidence interval, but fail to observe a significant NIE.
+
+# Extensions of functions to cases with exposure-mediator interactions
+The `mzipmed` package extends all the previous functions to cases where you are considering if there is an exposure-mediator interaction. In addition to the NDE and NIE additional quantities can be computed including the controlled direct effect (CDE), pure indirect effect (PIE), interactive reference effect (INTref), and interaction mediation effect (INTmed) which are the exposure-outcome relationship due to neither mediation nor interaction, only mediation, only interaction, and the tandem effect of mediation and interaction respectively. The interaction effects are for additive interactions, multiplicative interactions can be assessed directly in the outcome model. Also computed is the proportion eliminated (PE) which answers the question ‘if we were to fix the mediator to some value how much of the exposure differences in the outcome could be eliminated?’.
+
+The functions to do this are as follows: for a continuous outcome and zero-inflated mediator use `lmoutzimedint`, for a binary outcome and ZI mediator use `binoutzimedint`, for a ZI outcome and continuous mediator use `zioutlmmedint`, and for a ZI outcome with a binary mediator use `zioutbinmedint`. We will skip model expression and formulas for effects, but they are available upon request. Instead we will show an example using `zioutlmmedint`. These functions have the same input as their non-interaction counterparts, but also require an additional argument in `M` which is a fixed value of the mediator used to compute CDE, INTref, INTmed, and PE. By default, `M=NULL` the mean value of the mediator is used, but can be altered e.g. `M=0`. Running the function will print the NDE, NIE, and TE in R console like before as well as the other 4 effects, the overall additive interaction effect, and PM, PE, and the proportion attributable to interaction. 
+
+```{r echo=TRUE}
+zimout=zioutlmmedint(outcome=mzipmed_data$ziY1,mediator=mzipmed_data$lmM, exposure=mzipmed_data$X, confounder=cbind(mzipmed_data$C1,mzipmed_data$C2),error="Delta", robust=FALSE,X=1,Xstar=0,M=NULL,C=NULL)
+```
+
+From this example we fail to see a significant NDE, but do have a significant mediation effect based on relative risk interpretations. The interaction effects are on a difference scale regardless of the scale of the outcome variable so because 0 is included in the total additive interaction confidence interval we can conclude that we do not have evidence of a significant additive interaction effect between the exposure and mediator on the outcome. Investigating further into the zimout data in the global environment proportions attributable to each of the decomposed effects are provided.
+
+# References
+Long DL, Preisser JS, Herring AH, Golin CE. A marginalized zero-inflated Poisson regression model with overall exposure effects. Stat Med. 2014;33(29):5151-5165. doi:10.1002/sim.6293
+
+VanderWeele T. Explanation in Causal Inference: Methods for Mediation and Interaction. Oxford University Press; 2016.

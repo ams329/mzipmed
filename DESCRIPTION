@@ -1,6 +1,6 @@
 Package: mzipmed
 Title: Mediation using MZIP Model
-Version: 1.2.7
+Version: 1.3.0
 Authors@R: c(
     person(given = "Andrew",
            family = "Sims",
@@ -24,3 +24,7 @@ Imports: MASS, robust, stats, matrixStats
 License: MIT + file LICENSE
 Depends: 
     R (>= 2.10)
+Suggests: 
+    rmarkdown,
+    knitr
+VignetteBuilder: knitr

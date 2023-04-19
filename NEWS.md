@@ -1,3 +1,7 @@
+# mzipmed 1.3.0
+-Added vignette
+
+---
 # mzipmed 1.2.7
 -Added R console output for `zioutlmmedint` that was accidentally left out prior
 
