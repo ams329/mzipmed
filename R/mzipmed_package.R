@@ -17,7 +17,7 @@
 #'    Note: BFGS likelihood optimization was used for this R package
 #' @param y is the outcome variable
 #' @param pred is a vector of covariates (use cbind for multiple)
-#' @param print if =TRUE will give model parameters estimates and overall mean relative risks. Default =FALSE
+#' @param print if =TRUE will give model parameters estimates and overall mean relative risks. Default =TRUE
 #' @return The function will return a list of 22 elements.
 #'     In the list G(Gamma) refers to the excess zero/logistic part of the model \cr
 #'     and A(Alpha) refers to the Poisson/mean part of the model for example. \cr
@@ -49,7 +49,7 @@
 
 
 
-mzip = function(y,pred,print=FALSE){
+mzip = function(y,pred,print=TRUE){
 
   intercept=rep(1,length(y))
   Z=cbind(intercept,pred)
@@ -188,12 +188,12 @@ mzip = function(y,pred,print=FALSE){
     print("Excess Zero Estimates from MZIP")
     print(MZIP_ExcessZero)
 
-    rel_risk=exp(output$Aest)
-    rrlowci=exp(output$AModelLower)
-    rruppci=exp(output$AModelUpper)
-    rrroblowci=exp(output$ARobustLower)
-    rrrobuppci=exp(output$ARobustUpper)
-    Relative_Risk=data.frame(Variable=varname,rel_risk=round(rel_risk,digits=3),
+    rel_risk=exp(output$Aest)[-intercept]
+    rrlowci=exp(output$AModelLower)[-intercept]
+    rruppci=exp(output$AModelUpper)[-intercept]
+    rrroblowci=exp(output$ARobustLower)[-intercept]
+    rrrobuppci=exp(output$ARobustUpper)[-intercept]
+    Relative_Risk=data.frame(Variable=varname[-intercept],rel_risk=round(rel_risk,digits=3),
                              Lower_CI=round(rrlowci,digits=3),Upper_CI=round(rruppci,digits=3),
                              RobLower_CI=round(rrroblowci,digits=3),RobUpper_CI=round(rrrobuppci,digits=3))
     print("Overall Mean Relative Risk Estimates")

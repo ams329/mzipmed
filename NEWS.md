@@ -1,3 +1,9 @@
+#mzipmed 1.3.1
+-Made 'print' default in `mzip` function TRUE
+-Fixed print in `mzip` function to not give 'relative risk' of intercept
+
+---
+
 # mzipmed 1.3.0
 -Added vignette
 
