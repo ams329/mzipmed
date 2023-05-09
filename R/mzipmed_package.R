@@ -196,7 +196,7 @@ mzip = function(y,pred,print=TRUE){
     Relative_Risk=data.frame(Variable=varname[-intercept],rel_risk=round(rel_risk,digits=3),
                              Lower_CI=round(rrlowci,digits=3),Upper_CI=round(rruppci,digits=3),
                              RobLower_CI=round(rrroblowci,digits=3),RobUpper_CI=round(rrrobuppci,digits=3))
-    print("Overall Mean Relative Risk Estimates")
+    print("Overall Mean Rate Ratio Estimates")
     print(Relative_Risk)
   }
   return(output)
@@ -1702,15 +1702,15 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
 #' @return The function will return a list of 12 elements.
 #'     LM is the linear model regressing the exposure and covariates on the continuous mediator \cr
 #'     MZIP is the results of regressing the exposure, covariates, and mediator on the outcome using the MZIP model \cr
-#'     RRNDE is the risk ratio of the direct effect \cr
-#'     RRNIE is the risk ratio of the indirect effect. \cr
-#'     logRRNDEse is the standard error for the log risk ratio of NDE \cr
-#'     RRNDEci is the 95% confidence interval for the direct effect risk ratio\cr
-#'     logRRNIEse is the standard error for  the indirect effect log risk ratio \cr
-#'     RRNIEci is the 95% confidence interval for the indirect effect risk ratio \cr
-#'     RRTE is the total effect risk ratio \cr
-#'     logRRTEse is the standard error for the total effect log risk ratio\cr
-#'     RRTECI is the confidence interval for the total effect risk ratio \cr
+#'     RRNDE is the rate ratio of the direct effect \cr
+#'     RRNIE is the rate ratio of the indirect effect. \cr
+#'     logRRNDEse is the standard error for the log rate ratio of NDE \cr
+#'     RRNDEci is the 95% confidence interval for the direct effect rate ratio\cr
+#'     logRRNIEse is the standard error for  the indirect effect log rate ratio \cr
+#'     RRNIEci is the 95% confidence interval for the indirect effect rate ratio \cr
+#'     RRTE is the total effect rate ratio \cr
+#'     logRRTEse is the standard error for the total effect log rate ratio\cr
+#'     RRTECI is the confidence interval for the total effect rate ratio \cr
 #'     PM is the proportion mediated
 #' @examples
 #'     #Example using delta method
@@ -1862,7 +1862,7 @@ zioutlmmed=function(outcome,mediator,exposure,confounder=NULL,X=1,Xstar=0,error=
                           output$RRTE,output$logRRTEse,output$RRTEci[1],output$RRTEci[2],
                           output$PM,NA,NA,NA),nrow=4,byrow=TRUE),digits=3)
   colnames(outprint)<-c("Estimate","log SE","Lower CI","Upper CI")
-  rownames(outprint)<-c("Natural Direct Effect (RR)","Natural Indirect Effect (RR)","Total Effect (RR)","Proportion Mediated")
+  rownames(outprint)<-c("Natural Direct Effect (IRR)","Natural Indirect Effect (IRR)","Total Effect (IRR)","Proportion Mediated")
   outprint<-as.table(outprint)
   print(outprint)
 
@@ -1890,28 +1890,28 @@ zioutlmmed=function(outcome,mediator,exposure,confounder=NULL,X=1,Xstar=0,error=
 #' @return The function will return a list of 34 elements.
 #'     MZIP is the results of regressing the mediator+exposure+confounder on the outcome using MZIP. To assess interaction effect individually look in the glm statement at the 4th parameter estimate \cr
 #'     LM is the results of regressing the exposure and confounders on the mediator using linear regression \cr
-#'     RRCDE is the controlled direct effect risk ratio \cr
-#'     RRNDE is the natural direct effect risk ratio \cr
-#'     RRNIE is the indirect effect risk ratio. \cr
+#'     RRCDE is the controlled direct effect rate ratio \cr
+#'     RRNDE is the natural direct effect rate ratio \cr
+#'     RRNIE is the indirect effect rate ratio. \cr
 #'     PM is the proportion mediated\cr
-#'     logRRCDEse is the standard error for the  controlled direct effect log risk ratio \cr
-#'     RRCDEci is the 95% confidence interval for the controlled direct effect risk raito\cr
-#'     logRRNDEse is the standard error for the  natural direct effect log risk ratio \cr
-#'     RRNDEci is the 95% confidence interval for the natural direct effect risk ratio\cr
-#'     logRRNIEse is the standard error for  the indirect effect log risk ratio \cr
-#'     RRNIEci is the 95% confidence interval for the indirect effect risk ratio\cr
-#'     Intref is the Interactive Reference effect (not a risk ratio) \cr
+#'     logRRCDEse is the standard error for the  controlled direct effect log rate ratio \cr
+#'     RRCDEci is the 95% confidence interval for the controlled direct effect rate raito\cr
+#'     logRRNDEse is the standard error for the  natural direct effect log rate ratio \cr
+#'     RRNDEci is the 95% confidence interval for the natural direct effect rate ratio\cr
+#'     logRRNIEse is the standard error for  the indirect effect log rate ratio \cr
+#'     RRNIEci is the 95% confidence interval for the indirect effect rate ratio\cr
+#'     Intref is the Interactive Reference effect (not a ratio) \cr
 #'     Intrefse is the standard error for Intref \cr
 #'     IntrefCI is the CI for Intref \cr
-#'     RRPIE is the pure indirect effect risk ratio \cr
-#'     logRRPIEse is the standard error of PIE log risk ratio \cr
-#'     RRPIECI is the CI for PIE risk ratio \cr
-#'     Intmed is the interactive mediation effect (not a risk ratio) \cr
+#'     RRPIE is the pure indirect effect rate ratio \cr
+#'     logRRPIEse is the standard error of PIE log rate ratio \cr
+#'     RRPIECI is the CI for PIE rate ratio \cr
+#'     Intmed is the interactive mediation effect (not a ratio) \cr
 #'     Intmedse is the error associated with Intmed \cr
 #'     IntmedCI is the CI for Intmed \cr
-#'     RRTE is the total effect risk ratio \cr
-#'     logRRTEse is the error of the total effect log risk ratio \cr
-#'     RRTECI is the CI for the total effect risk ratio\cr
+#'     RRTE is the total effect rate ratio \cr
+#'     logRRTEse is the error of the total effect log rate ratio \cr
+#'     RRTECI is the CI for the total effect rate ratio\cr
 #'     Int is the overall additive interaction effect \cr
 #'     Intse is the standard error for the additive interaction \cr
 #'     IntCI is the confidence interval for the interaction effect \cr
@@ -2303,8 +2303,8 @@ zioutlmmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X
                           output$PE,NA,NA,NA,
                           output$PAINT,NA,NA,NA),ncol=4,byrow=TRUE),digits=3)
   colnames(outprint)<-c("Estimate","log SE","Lower CI","Upper CI")
-  rownames(outprint)<-c("Natural Direct Effect (RR)","Natural Indirect Effect (RR)","Total Effect (RR)",
-                        "","4-way Decomposition","Controlled Direct Effect (RR)","Pure Indirect Effect (RR)",
+  rownames(outprint)<-c("Natural Direct Effect (IRR)","Natural Indirect Effect (IRR)","Total Effect (IRR)",
+                        "","4-way Decomposition","Controlled Direct Effect (IRR)","Pure Indirect Effect (IRR)",
                         "Interactive Reference Effect","Interactive Mediation Effect","Total Additive Interaction",
                         "","Proportions","Proportion Mediated","Proportion Eliminated","Proportion from Interaction")
   outprint<-as.table(outprint)
@@ -2339,15 +2339,15 @@ zioutlmmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X
 #' @return The function will return a list of 12 elements.
 #'     GLM is the logistic model regressing the exposure and covariates on the continuous mediator \cr
 #'     MZIP is the results of regressing the exposure, covariates, and mediator on the outcome using the MZIP model \cr
-#'     RRNDE is the risk ratio of the direct effect \cr
-#'     RRNIE is the risk ratio of the indirect effect. \cr
-#'     logRRNDEse is the standard error for the log risk ratio of NDE \cr
-#'     RRNDEci is the 95% confidence interval for the direct effect risk ratio\cr
-#'     logRRNIEse is the standard error for  the indirect effect log risk ratio \cr
-#'     RRNIEci is the 95% confidence interval for the indirect effect risk ratio \cr
-#'     RRTE is the total effect risk ratio \cr
-#'     logRRTEse is the standard error for the total effect log risk ratio\cr
-#'     RRTECI is the confidence interval for the total effect risk ratio \cr
+#'     RRNDE is the rate ratio of the direct effect \cr
+#'     RRNIE is the rate ratio of the indirect effect. \cr
+#'     logRRNDEse is the standard error for the log rate ratio of NDE \cr
+#'     RRNDEci is the 95% confidence interval for the direct effect rate ratio\cr
+#'     logRRNIEse is the standard error for  the indirect effect log rate ratio \cr
+#'     RRNIEci is the 95% confidence interval for the indirect effect rate ratio \cr
+#'     RRTE is the total effect rate ratio \cr
+#'     logRRTEse is the standard error for the total effect log rate ratio\cr
+#'     RRTECI is the confidence interval for the total effect rate ratio \cr
 #'     PM is the proportion mediated
 #' @examples
 #'     #Example using delta method
@@ -2542,7 +2542,7 @@ zioutbinmed=function(outcome,mediator,exposure,confounder=NULL,n=1000,X=1,Xstar=
                           output$RRTE,output$logRRTEse,output$RRTEci[1],output$RRTEci[2],
                           output$PM,NA,NA,NA),nrow=4,byrow=TRUE),digits=3)
   colnames(outprint)<-c("Estimate","log SE","Lower CI","Upper CI")
-  rownames(outprint)<-c("Natural Direct Effect (RR)","Natural Indirect Effect (RR)","Total Effect (RR)","Proportion Mediated")
+  rownames(outprint)<-c("Natural Direct Effect (IRR)","Natural Indirect Effect (IRR)","Total Effect (IRR)","Proportion Mediated")
   outprint<-as.table(outprint)
   print(outprint)
 
@@ -2572,28 +2572,28 @@ zioutbinmed=function(outcome,mediator,exposure,confounder=NULL,n=1000,X=1,Xstar=
 #' @return The function will return a list of 34 elements.
 #'     MZIP is the results of regressing the mediator+exposure+confounder on the outcome using MZIP. To assess interaction effect individually look in the glm statement at the 4th parameter estimate \cr
 #'     GLM is the results of regressing the exposure and confounders on the mediator using logistic regression \cr
-#'     RRCDE is the controlled direct effect risk ratio \cr
-#'     RRNDE is the natural direct effect risk ratio \cr
-#'     RRNIE is the indirect effect risk ratio. \cr
+#'     RRCDE is the controlled direct effect rate ratio \cr
+#'     RRNDE is the natural direct effect rate ratio \cr
+#'     RRNIE is the indirect effect rate ratio. \cr
 #'     PM is the proportion mediated\cr
-#'     logRRCDEse is the standard error for the  controlled direct effect log risk ratio \cr
-#'     RRCDEci is the 95% confidence interval for the controlled direct effect risk raito\cr
-#'     logRRNDEse is the standard error for the  natural direct effect log risk ratio \cr
-#'     RRNDEci is the 95% confidence interval for the natural direct effect risk ratio\cr
-#'     logRRNIEse is the standard error for  the indirect effect log risk ratio \cr
-#'     RRNIEci is the 95% confidence interval for the indirect effect risk ratio\cr
-#'     Intref is the Interactive Reference effect (not a risk ratio) \cr
+#'     logRRCDEse is the standard error for the  controlled direct effect log rate ratio \cr
+#'     RRCDEci is the 95% confidence interval for the controlled direct effect rate raito\cr
+#'     logRRNDEse is the standard error for the  natural direct effect log rate ratio \cr
+#'     RRNDEci is the 95% confidence interval for the natural direct effect rate ratio\cr
+#'     logRRNIEse is the standard error for  the indirect effect log rate ratio \cr
+#'     RRNIEci is the 95% confidence interval for the indirect effect rate ratio\cr
+#'     Intref is the Interactive Reference effect (not a ratio) \cr
 #'     Intrefse is the standard error for Intref \cr
 #'     IntrefCI is the CI for Intref \cr
-#'     RRPIE is the pure indirect effect risk ratio \cr
-#'     logRRPIEse is the standard error of PIE log risk ratio \cr
-#'     RRPIECI is the CI for PIE risk ratio \cr
-#'     Intmed is the interactive mediation effect (not a risk ratio) \cr
+#'     RRPIE is the pure indirect effect rate ratio \cr
+#'     logRRPIEse is the standard error of PIE log rate ratio \cr
+#'     RRPIECI is the CI for PIE rate ratio \cr
+#'     Intmed is the interactive mediation effect (not a ratio) \cr
 #'     Intmedse is the error associated with Intmed \cr
 #'     IntmedCI is the CI for Intmed \cr
-#'     RRTE is the total effect risk ratio \cr
-#'     logRRTEse is the error of the total effect log risk ratio \cr
-#'     RRTECI is the CI for the total effect risk ratio\cr
+#'     RRTE is the total effect rate ratio \cr
+#'     logRRTEse is the error of the total effect log rate ratio \cr
+#'     RRTECI is the CI for the total effect rate ratio\cr
 #'     Int is the overall additive interaction effect \cr
 #'     Intse is the standard error for the additive interaction \cr
 #'     IntCI is the confidence interval for the interaction effect \cr
@@ -3066,8 +3066,8 @@ zioutbinmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,
                           output$PE,NA,NA,NA,
                           output$PAINT,NA,NA,NA),ncol=4,byrow=TRUE),digits=3)
   colnames(outprint)<-c("Estimate","log SE","Lower CI","Upper CI")
-  rownames(outprint)<-c("Natural Direct Effect (RR)","Natural Indirect Effect (RR)","Total Effect (RR)",
-                        "","4-way Decomposition","Controlled Direct Effect (RR)","Pure Indirect Effect (RR)",
+  rownames(outprint)<-c("Natural Direct Effect (IRR)","Natural Indirect Effect (IRR)","Total Effect (IRR)",
+                        "","4-way Decomposition","Controlled Direct Effect (IRR)","Pure Indirect Effect (IRR)",
                         "Interactive Reference Effect","Interactive Mediation Effect","Total Additive Interaction",
                         "","Proportions","Proportion Mediated","Proportion Eliminated","Proportion from Interaction")
   outprint<-as.table(outprint)

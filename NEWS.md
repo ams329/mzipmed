@@ -1,3 +1,6 @@
+#mzipmed 1.3.2
+-Corrected some terminology issues relating to risk ratios vs. rate ratios
+
 #mzipmed 1.3.1
 -Made 'print' default in `mzip` function TRUE
 -Fixed print in `mzip` function to not give 'relative risk' of intercept
