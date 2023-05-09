@@ -193,7 +193,7 @@ mzip = function(y,pred,print=TRUE){
     rruppci=exp(output$AModelUpper)[-intercept]
     rrroblowci=exp(output$ARobustLower)[-intercept]
     rrrobuppci=exp(output$ARobustUpper)[-intercept]
-    Relative_Risk=data.frame(Variable=varname[-intercept],rel_risk=round(rel_risk,digits=3),
+    Relative_Risk=data.frame(Variable=varname[-intercept],rate_ratio=round(rel_risk,digits=3),
                              Lower_CI=round(rrlowci,digits=3),Upper_CI=round(rruppci,digits=3),
                              RobLower_CI=round(rrroblowci,digits=3),RobUpper_CI=round(rrrobuppci,digits=3))
     print("Overall Mean Rate Ratio Estimates")
