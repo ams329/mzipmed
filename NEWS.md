@@ -1,3 +1,6 @@
+#mzipmed 1.3.3 & 1.3.4
+-Various typo fixes
+
 #mzipmed 1.3.2
 -Corrected some terminology issues relating to risk ratios vs. rate ratios
 
