@@ -15,7 +15,10 @@ binoutzimedint(
   Xstar = 0,
   M = NULL,
   error = "Delta",
-  robust = FALSE
+  robust = FALSE,
+  zioff = NULL,
+  rare = FALSE,
+  OFF = NULL
 )
 }
 \arguments{
@@ -40,6 +43,12 @@ binoutzimedint(
 \item{error}{='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method}
 
 \item{robust}{indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.}
+
+\item{zioff}{(optional) use to specify an offset variable within the MZIP mediator model. Note: Mediator/Offset is used in the outcome model}
+
+\item{rare}{set to TRUE of the outcome is rare and a logistic-regression should be used instead. Default is FALSE using robust Poisson model}
+
+\item{OFF}{if an offset is specified a fixed value of the offset variable is required for derviation of effects. By default the mean is used.}
 }
 \value{
 The function will return a list of 34 elements.
@@ -87,5 +96,6 @@ This function will do the same thing as the binoutzimed function, but includes a
    #This builds upon function without interaction
     zimmed=binoutzimedint(outcome=mzipmed_data$binY,mediator=mzipmed_data$ziM,
                    exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-                   mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,M=NULL,C=NULL)
+                   mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,M=NULL,
+                   C=NULL,zioff=NULL,OFF=NULL,rare=FALSE)
 }

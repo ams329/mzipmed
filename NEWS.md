@@ -1,8 +1,27 @@
+#mzipmed 1.4.0
+-Added offset options to mzip and mediation functions
+-Function with binary outcome and ZI mediator can now use logistic regression outcome model using the `rare` argument
+-Adding an offset added made some derivations conditional on a fixed value of the offset. These functions had an additional argument called `OFF` added
+-Removed dependence on `robust` package and added dependence on `sandwich` package to be used when computing the robust covariance matrix for the Poisson outcome model
+
+---
+
+#mzipmed 1.3.5
+-Fixed typos in the vignette 
+-Added some additional information to the vignette for clarity purposes
+-Other minor code fixes
+
+---
+
 #mzipmed 1.3.3 & 1.3.4
 -Various typo fixes
 
+---
+
 #mzipmed 1.3.2
 -Corrected some terminology issues relating to risk ratios vs. rate ratios
+
+---
 
 #mzipmed 1.3.1
 -Made 'print' default in `mzip` function TRUE

@@ -4,17 +4,19 @@
 \alias{mzip}
 \title{Marginalized Zero-Inflated Poisson Regression Model}
 \usage{
-mzip(y, pred, print = FALSE)
+mzip(y, pred, print = TRUE, offset = NULL)
 }
 \arguments{
 \item{y}{is the outcome variable}
 
 \item{pred}{is a vector of covariates (use cbind for multiple)}
 
-\item{print}{if =TRUE will give model parameters estimates and overall mean relative risks. Default =FALSE}
+\item{print}{if =TRUE will give model parameters estimates and overall mean relative risks. Default =TRUE}
+
+\item{offset}{is an optional variable to be used as an offset, no need to log-transform prior}
 }
 \value{
-The function will return a list of 22 elements.
+The function will return a list of results from the MZIP model.
 In the list G(Gamma) refers to the excess zero/logistic part of the model \cr
 and A(Alpha) refers to the Poisson/mean part of the model for example. \cr
 Gest are the gamma coefficients for the logistic part of the MZIP model. \cr
@@ -32,7 +34,10 @@ _RobustZpval are the p-values based on the robust z scores. \cr
 AlphaCov is the covariance matrix for the poisson coefficient estimates \cr
 Cov is the covariance matrix for the MZIP model \cr
 RobAlphaCov robust covariance matrix for the Poisson component of MZIP \cr
-RobCov robust covariance matrix
+RobCov robust covariance matrix \cr
+loglik is the log-likelihood of the MZIP model \cr
+AIC is the Akaike's Information Criterion of the MZIP Model \cr
+BIC is the Bayesian's Information Criterion of the MZIP Model
 }
 \description{
 This function uses the MZIP model to allow you to fit counts variables
@@ -44,14 +49,15 @@ gender or race need to be dummy coded with zeroes and ones. For more
 information about this model and interpretations see Long, D Leann et al. "A marginalized
 zero-inflated Poisson regression model with overall exposure effects." Statistics in
 medicine vol. 33,29 (2014): 5151-65. doi:10.1002/sim.6293.
-Note: BFGS likelihood optimization was used for this R package
+Note: BFGS likelihood optimization was used for this R package. For more information on use
+of the \code{offset} argument see vignette.
 }
 \examples{
     test=mzip(y=mzipmed_data$ziY1,pred=cbind(mzipmed_data$X,mzipmed_data$C1,
-              mzipmed_data$C2),print=FALSE)
+              mzipmed_data$C2),print=FALSE,offset=NULL)
 
    \dontrun{
    test= mzip(y=mzipmed_data$ziY1,pred=cbind(X=mzipmed_data$X,C1=mzipmed_data$C1,
-              C2=mzipmed_data$C2),print=TRUE)
+              C2=mzipmed_data$C2),print=TRUE,offset=NULL)
               }
 }

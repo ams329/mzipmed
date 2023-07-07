@@ -14,11 +14,13 @@
 #'    information about this model and interpretations see Long, D Leann et al. "A marginalized
 #'    zero-inflated Poisson regression model with overall exposure effects." Statistics in
 #'    medicine vol. 33,29 (2014): 5151-65. doi:10.1002/sim.6293.
-#'    Note: BFGS likelihood optimization was used for this R package
+#'    Note: BFGS likelihood optimization was used for this R package. For more information on use
+#'    of the `offset` argument see vignette.
 #' @param y is the outcome variable
 #' @param pred is a vector of covariates (use cbind for multiple)
 #' @param print if =TRUE will give model parameters estimates and overall mean relative risks. Default =TRUE
-#' @return The function will return a list of 22 elements.
+#' @param offset is an optional variable to be used as an offset, no need to log-transform prior
+#' @return The function will return a list of results from the MZIP model.
 #'     In the list G(Gamma) refers to the excess zero/logistic part of the model \cr
 #'     and A(Alpha) refers to the Poisson/mean part of the model for example. \cr
 #'     Gest are the gamma coefficients for the logistic part of the MZIP model. \cr
@@ -36,25 +38,28 @@
 #'     AlphaCov is the covariance matrix for the poisson coefficient estimates \cr
 #'     Cov is the covariance matrix for the MZIP model \cr
 #'     RobAlphaCov robust covariance matrix for the Poisson component of MZIP \cr
-#'     RobCov robust covariance matrix
+#'     RobCov robust covariance matrix \cr
+#'     loglik is the log-likelihood of the MZIP model \cr
+#'     AIC is the Akaike's Information Criterion of the MZIP Model \cr
+#'     BIC is the Bayesian's Information Criterion of the MZIP Model
 #' @examples
 #'     test=mzip(y=mzipmed_data$ziY1,pred=cbind(mzipmed_data$X,mzipmed_data$C1,
-#'               mzipmed_data$C2),print=FALSE)
+#'               mzipmed_data$C2),print=FALSE,offset=NULL)
 #'
 #'    \dontrun{
 #'    test= mzip(y=mzipmed_data$ziY1,pred=cbind(X=mzipmed_data$X,C1=mzipmed_data$C1,
-#'               C2=mzipmed_data$C2),print=TRUE)
+#'               C2=mzipmed_data$C2),print=TRUE,offset=NULL)
 #'               }
 #' @export
 
 
 
-mzip = function(y,pred,print=TRUE){
+mzip = function(y,pred,print=TRUE,offset=NULL){
 
   intercept=rep(1,length(y))
   Z=cbind(intercept,pred)
   X=Z
-
+  N=offset
 
   like = function(theta) {
 
@@ -67,13 +72,27 @@ mzip = function(y,pred,print=TRUE){
     z1g = Z[y>0,]%*%c(theta[1:dim(Z)[2]])
     x1a = X[y>0,]%*%c(theta[(1+dim(Z)[2]):(dim(Z)[2]+dim(X)[2])])
 
-    #log likelihood
-    bill=-1*sum(log(1+exp(zg)))+
-      sum(log(exp(z0g)+exp(-(1+exp(z0g))*exp(x0a))))+
-      sum(-(1+exp(z1g))*exp(x1a))+
-      sum(y[y>0]*log(1+exp(z1g)))+
-      sum(x1a*y[y>0])-
-      sum(lgamma(y[y>0]+1))
+    if(is.null(offset)){
+      #log likelihood
+      bill=-1*sum(log(1+exp(zg)))+
+        sum(log(exp(z0g)+exp(-(1+exp(z0g))*exp(x0a))))+
+        sum(-(1+exp(z1g))*exp(x1a))+
+        sum(y[y>0]*log(1+exp(z1g)))+
+        sum(x1a*y[y>0])-
+        sum(lgamma(y[y>0]+1))
+    } else{
+
+      N0=N[y==0]
+      N1=N[y>0]
+
+      bill=-1*sum(log(1+exp(zg)))+
+        sum(log(exp(z0g)+exp(-N0*(1+exp(z0g))*exp(x0a))))+
+        sum(-N1*(1+exp(z1g))*exp(x1a))+
+        sum(y[y>0]*log(1+exp(z1g)))+
+        sum(x1a*y[y>0])+
+        sum(y[y>0]*log(N1))-
+        sum(lgamma(y[y>0]+1))
+    }
 
     return(-bill)
   }
@@ -123,14 +142,24 @@ mzip = function(y,pred,print=TRUE){
   for(qq in 1:dim(Z)[1]){
 
     y = outcome[qq]
+    #N=offset[qq]
     ph= psi_hat[qq]
     ph2=psi_hat2[qq]
     nu=nu_hat[qq]
 
-    score_g = ((y==0)*(ph*ph2*(exp(nu*ph2)-nu))/(ph*ph2*exp(nu*ph2)+1)+ph*(y - 1) - (y>0)*ph*ph2*nu)%*%t(Z[qq,])
+    if (is.null(offset)){
 
-    score_a = ((y-nu*ph2)*(y>0) - (y==0)*(nu*ph2)/(ph*ph2*exp(nu*ph2)+1))%*%t(X[qq,])
+      score_g = ((y==0)*(ph*ph2*(exp(nu*ph2)-nu))/(ph*ph2*exp(nu*ph2)+1)+ph*(y - 1) - (y>0)*ph*ph2*nu)%*%t(Z[qq,])
 
+      score_a = ((y-nu*ph2)*(y>0) - (y==0)*(nu*ph2)/(ph*ph2*exp(nu*ph2)+1))%*%t(X[qq,])
+    } else{
+      N=offset[qq]
+
+      score_g = ((y==0)*(ph*ph2*(exp(N*nu*ph2)-N*nu))/(ph*ph2*exp(N*nu*ph2)+1)+ph*(y - 1) - (y>0)*ph*ph2*N*nu)%*%t(Z[qq,])
+
+      score_a = ((y-N*nu*ph2)*(y>0) - (y==0)*(N*nu*ph2)/(ph*ph2*exp(N*nu*ph2)+1))%*%t(X[qq,])
+      #Not sure if I should use N or N0, N1 in this section
+    }
     score = cbind(score_g,score_a)
 
     M1 = M1 + t(score)%*%(score)
@@ -147,6 +176,10 @@ mzip = function(y,pred,print=TRUE){
   mlower = c(gamma_hat,alpha_hat) - 1.96*m_se
   rupper = c(gamma_hat,alpha_hat) + 1.96*r_se
   rlower = c(gamma_hat,alpha_hat) - 1.96*r_se
+
+  loglik=-estimates$value
+  AIC=2*2*ncol(Z)-2*loglik
+  BIC=-2*loglik+log(length(y))*2*ncol(Z)
 
   GWald=(gamma_hat/m_se[1:dim(Z)[2]])^2
   GPval=ifelse(1-stats::pchisq(q=(gamma_hat/m_se[1:dim(Z)[2]])^2,df=1)<.0001,"<.0001",round(1-stats::pchisq(q=(gamma_hat/m_se[1:dim(Z)[2]])^2,df=1),digits=5))
@@ -171,7 +204,7 @@ mzip = function(y,pred,print=TRUE){
                  ARobustZ = alpha_hat/r_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])],
                  AModelZpval = 2*(1-stats::pnorm(abs(alpha_hat/m_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])]))),
                  ARobustZpval = 2*(1-stats::pnorm(abs(alpha_hat/r_se[(dim(Z)[2]+1):(dim(Z)[2]+dim(X)[2])]))),
-                 AlphaCov=aCov,Cov=Inv_inform,RobCov=robust,RobAlphaCov=RobaCov)
+                 AlphaCov=aCov,Cov=Inv_inform,RobCov=robust,RobAlphaCov=RobaCov,loglik=-estimates$value,AIC=AIC,BIC=BIC)
 
   if(print){
     name=data.frame(intercept,pred)
@@ -205,6 +238,7 @@ mzip = function(y,pred,print=TRUE){
 
 
 
+
 #' Mediation Analysis for Zero-Inflated Count Mediators using MZIP (Continuous Outcome)
 #'
 #' This function incorporates the MZIP model into the counterfactual approach to mediation analysis
@@ -222,6 +256,7 @@ mzip = function(y,pred,print=TRUE){
 #' @param C is a vector for theoretical values of each confounder. By default each each value of C will be the mean value of each confounder.
 #' @param error ='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method
 #' @param robust indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.
+#' @param zioff (optional) use to specify an offset variable within the MZIP mediator model. Note: Mediator/Offset is used in the outcome model
 #' @return The function will return a list of 12 elements.
 #'     LM is the results of regressing the mediator+exposure+confounder on the outcome using a linear model \cr
 #'     MZIP is the results of regressing the exposure and confounders on the mediator using the MZIP model \cr
@@ -239,7 +274,7 @@ mzip = function(y,pred,print=TRUE){
 #'     #Example with delta method
 #'     zimed=lmoutzimed(outcome=mzipmed_data$lmY,mediator=mzipmed_data$ziM,
 #'                  exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-#'                  mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0)
+#'                  mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,zioff=NULL)
 #'
 #'     #Example using bootstrapping, 10 iterations used for succinctness
 #'     zimed2=lmoutzimed(outcome=mzipmed_data$lmY,mediator=mzipmed_data$ziM,
@@ -249,16 +284,33 @@ mzip = function(y,pred,print=TRUE){
 
 
 
-lmoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,Xstar=0,error='Delta',robust=FALSE){
+lmoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,Xstar=0,error='Delta',robust=FALSE,zioff=NULL){
   lmout=data.frame(outcome)
 
-  if (is.null(confounder)){
-    lmpred=data.frame(exposure,mediator)
-    medreg=mzip(y=mediator,pred=exposure,print=F)
-  } else{
-    lmpred=data.frame(exposure,mediator,confounder)
-    medreg=mzip(y=mediator,pred=cbind(exposure,confounder),print=F)
+  if (is.null(zioff)){
+    if (is.null(confounder)){
+      lmpred=data.frame(exposure,mediator)
+      medreg=mzip(y=mediator,pred=exposure,print=F)
+      alldata=data.frame(outcome, mediator, exposure)
+    } else{
+      lmpred=data.frame(exposure,mediator,confounder)
+      medreg=mzip(y=mediator,pred=cbind(exposure,confounder),print=F)
+      alldata=data.frame(outcome, mediator, exposure, confounder)
+    }
+  } else {
+    if (is.null(confounder)){
+      medrate=mediator/zioff
+      lmpred=data.frame(exposure,medrate)
+      medreg=mzip(y=mediator, pred=exposure, print=F, offset=zioff)
+      alldata=data.frame(outcome, mediator, exposure, zioff, medrate)
+    } else{
+      medrate=mediator/zioff
+      lmpred=data.frame(exposure,medrate,confounder)
+      medreg=mzip(y=mediator,pred=cbind(exposure,confounder),print=F,offset=zioff)
+      alldata=data.frame(outcome, mediator, exposure, confounder, zioff, medrate)
+    }
   }
+
   #as.formula and lm part of stats package
   lmdata=data.frame(lmout,lmpred)
   f<-stats::as.formula(paste(colnames(lmout),paste(colnames(lmpred),collapse="+"),sep="~"))
@@ -312,11 +364,11 @@ lmoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,
 
     GamTE=GamIE+GamDE
     #Extract Covariance matrices
-   if (robust){
-     MZIPCov=medreg$RobAlphaCov
-   } else {
-     MZIPCov=medreg$AlphaCov
-   }
+    if (robust){
+      MZIPCov=medreg$RobAlphaCov
+    } else {
+      MZIPCov=medreg$AlphaCov
+    }
 
     lmCov=stats::vcov(outreg) #uses stats package
 
@@ -360,17 +412,31 @@ lmoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,
     confb=list()
     TEb=list()
     for (i in 1:n){
-      datab[[i]]=sample(1:nrow(lmdata),replace=T)
-      datab2[[i]]=lmdata[datab[[i]],]
+      datab[[i]]=sample(1:nrow(alldata),replace=T)
+      datab2[[i]]=alldata[datab[[i]],]
       outregb[[i]]=stats::lm(f,data=datab2[[i]])
-      if (is.null(confounder)){
-        medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=datab2[[i]][["exposure"]],print=F)
-        IEb[[i]]=outregb[[i]]$coefficients[[3]]*(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X)-exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar))
+
+      if (is.null(zioff)){
+        if (is.null(confounder)){
+          medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=datab2[[i]][["exposure"]],print=F)
+          IEb[[i]]=outregb[[i]]$coefficients[[3]]*(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X)-exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar))
+        } else {
+          confb[[i]]=data.matrix(datab2[[i]][c(4:r)])
+          medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=cbind(datab2[[i]][["exposure"]],confb[[i]]),print=F)
+          IEb[[i]]=outregb[[i]]$coefficients[[3]]*(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+sum(medregb[[i]][["Aest"]][c(3:m)]*C))-exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)))
+        }
       } else {
-        confb[[i]]=data.matrix(datab2[[i]][c(4:r)])
-        medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=cbind(datab2[[i]][["exposure"]],confb[[i]]),print=F)
-        IEb[[i]]=outregb[[i]]$coefficients[[3]]*(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+sum(medregb[[i]][["Aest"]][c(3:m)]*C))-exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)))
+        if (is.null(confounder)){
+          medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=datab2[[i]][["exposure"]],print=F,offset=datab2[[i]][["zioff"]])
+          IEb[[i]]=outregb[[i]]$coefficients[[3]]*(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X)-exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar))
+        } else{
+          confb[[i]]=data.matrix(datab2[[i]][c(4:r)])
+          medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=cbind(datab2[[i]][["exposure"]],confb[[i]]),print=F,offset=datab2[[i]][["zioff"]])
+          IEb[[i]]=outregb[[i]]$coefficients[[3]]*(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+sum(medregb[[i]][["Aest"]][c(3:m)]*C))-exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)))
+        }
       }
+
+
       DEb[[i]]=outregb[[i]]$coefficients[[2]]*(X-Xstar)
       # PMb[[i]]=IEb[[i]]/(IEb[[i]]+DEb[[i]])
       TEb[[i]]=IEb[[i]]+DEb[[i]]
@@ -423,6 +489,8 @@ lmoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,
 #' @param M is a fixed value for the mediator, M. If M is not specified, M will be set to its mean value
 #' @param error ='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method
 #' @param robust indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.
+#' @param zioff (optional) used to specify an offset variable within the MZIP mediator model. Note: Mediator/Offset is used in the outcome model
+#' @param OFF if an offset is specified a fixed value of the offset is required to compute CDE. By default it is the mean of the offset or 1 if no offset is specified.
 #' @return The function will return a list of 30 elements.
 #'     LM is the results of regressing the mediator+exposure+confounder on the outcome using a linear model. To assess interaction effect individually look in the lm statement at the 4th parameter estimate \cr
 #'     MZIP is the results of regressing the exposure and confounders on the mediator using the MZIP model \cr
@@ -458,21 +526,45 @@ lmoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,
 #'    #This builds upon function without interaction
 #'     zimmed=lmoutzimedint(outcome=mzipmed_data$lmY,mediator=mzipmed_data$ziM,
 #'                   exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-#'                   mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,M=NULL,C=NULL)
+#'                   mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,M=NULL,
+#'                   C=NULL,zioff=NULL,OFF=NULL)
 #' @export
 
 
-lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,Xstar=0,M=NULL,error='Delta',robust=FALSE){
+lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,Xstar=0,M=NULL,error='Delta',robust=FALSE,zioff=NULL,OFF=NULL){
 
-  interaction=mediator*exposure
-  lmout=data.frame(outcome)
-  if (is.null(confounder)){
-    lmpred=data.frame(exposure,mediator,interaction)
-    medreg=mzip(y=mediator,pred=exposure,print=F)
+  if (is.null(zioff)){
+    interaction=mediator*exposure
   } else{
-    lmpred=data.frame(exposure,mediator,interaction,confounder)
-    medreg=mzip(y=mediator,pred=cbind(exposure,confounder),print=F)
+    interaction=mediator*exposure/zioff
   }
+
+  lmout=data.frame(outcome)
+
+  if (is.null(zioff)){
+    if (is.null(confounder)){
+      lmpred=data.frame(exposure,mediator,interaction)
+      medreg=mzip(y=mediator,pred=exposure,print=F)
+      alldata=alldata=data.frame(outcome, mediator, exposure, interaction)
+    } else{
+      lmpred=data.frame(exposure,mediator,interaction,confounder)
+      medreg=mzip(y=mediator,pred=cbind(exposure,confounder),print=F)
+      alldata=alldata=data.frame(outcome, mediator, exposure, interaction, confounder)
+    }
+  } else {
+    if (is.null(confounder)){
+      medrate=mediator/zioff
+      lmpred=data.frame(exposure,medrate, interaction)
+      medreg=mzip(y=mediator, pred=exposure, print=F, offset=zioff)
+      alldata=data.frame(outcome, mediator, exposure, interaction, zioff, medrate)
+    } else{
+      medrate=mediator/zioff
+      lmpred=data.frame(exposure,medrate, interaction, confounder)
+      medreg=mzip(y=mediator,pred=cbind(exposure,confounder),print=F,offset=zioff)
+      alldata=data.frame(outcome, mediator, exposure, interaction, confounder, zioff, medrate)
+    }
+  }
+
 
   lmdata=data.frame(lmout,lmpred)
   f<-stats::as.formula(paste(colnames(lmout),paste(colnames(lmpred),collapse="+"),sep="~"))
@@ -491,9 +583,18 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
     M=mean(mediator)
   }
 
+  if(!is.null(zioff)){
+    if (is.null(OFF)){
+      OFF=mean(zioff)
+    }
+  }
+
+  if(is.null(zioff)){
+    OFF=1
+  }
 
   #Controlled Direct Effect
-  CDE=(outreg$coefficients[[2]]+outreg$coefficients[[4]]*M)*(X-Xstar)
+  CDE=(outreg$coefficients[[2]]+outreg$coefficients[[4]]*(M/OFF))*(X-Xstar)
 
 
   #Natural Direct Effect
@@ -538,7 +639,7 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
   if (error=='Delta'){
     #Standard Errors with Delta Method
     if (is.null(confounder)){
-      GamCDE=c(0,0,0,1,M,0)
+      GamCDE=c(0,0,0,1,M/OFF,0)
 
       d1=outreg$coefficients[[4]]*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar)
       d2=outreg$coefficients[[4]]*Xstar*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar)
@@ -561,7 +662,7 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
       r4=0
       r5=0
       r6=0
-      r7=(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))-M
+      r7=(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))-(M/OFF)
       GamIntref=c(r1,r2,r4,r5,r6,r7)
 
       p1=(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)*(exp(medreg$Aest[1]+medreg$Aest[2]*X)-exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
@@ -573,7 +674,7 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
       GamPIE=c(p1,p2,p4,p5,p6,p7)
     } else {
 
-      GamCDE=c(0,0,0*C,0,1,0,M,0*C)
+      GamCDE=c(0,0,0*C,0,1,0,M/OFF,0*C)
 
       d1=outreg$coefficients[[4]]*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg$Aest[c(3:k)]*C))
       d2=outreg$coefficients[[4]]*Xstar*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg$Aest[c(3:k)]*C))
@@ -601,7 +702,7 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
       r4=0
       r5=0
       r6=0
-      r7=(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:k)]*C)))-M
+      r7=(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:k)]*C)))-(M/OFF)
       r8=C*0
       GamIntref=c(r1,r2,r3,r4,r5,r6,r7,r8)
 
@@ -697,20 +798,36 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
     Intb=list()
     PIEb=list()
     for (i in 1:n){
-      datab[[i]]=sample(1:nrow(lmdata),replace=T)
-      datab2[[i]]=lmdata[datab[[i]],]
+      datab[[i]]=sample(1:nrow(alldata),replace=T)
+      datab2[[i]]=alldata[datab[[i]],]
       outregb[[i]]=stats::lm(f,data=datab2[[i]])
-      if (is.null(confounder)){
-        medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=datab2[[i]][["exposure"]],print=F)
-        IEb[[i]]=(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[4]*X)*(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X)-exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar))
-        PIEb[[i]]=(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[4]*Xstar)*(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X)-exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar))
+
+      if (is.null(zioff)){
+        if (is.null(confounder)){
+          medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=datab2[[i]][["exposure"]],print=F)
+          IEb[[i]]=(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[4]*X)*(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X)-exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar))
+          PIEb[[i]]=(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[4]*Xstar)*(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X)-exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar))
+        } else {
+          confb[[i]]=data.matrix(datab2[[i]][c(5:r)])
+          medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=cbind(datab2[[i]][["exposure"]],confb[[i]]),print=F)
+          IEb[[i]]=(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)*(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+sum(medregb[[i]][["Aest"]][c(3:k)]*C))-exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:k)]*C)))
+          PIEb[[i]]=(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)*(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+sum(medregb[[i]][["Aest"]][c(3:k)]*C))-exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:k)]*C)))
+        }
       } else {
-        confb[[i]]=data.matrix(datab2[[i]][c(5:r)])
-        medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=cbind(datab2[[i]][["exposure"]],confb[[i]]),print=F)
-        IEb[[i]]=(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)*(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+sum(medregb[[i]][["Aest"]][c(3:k)]*C))-exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:k)]*C)))
-        PIEb[[i]]=(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)*(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+sum(medregb[[i]][["Aest"]][c(3:k)]*C))-exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:k)]*C)))
+        if (is.null(confounder)){
+          medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=datab2[[i]][["exposure"]],print=F,offset=datab2[[i]][["zioff"]])
+          IEb[[i]]=(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[4]*X)*(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X)-exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar))
+          PIEb[[i]]=(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[4]*Xstar)*(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X)-exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar))
+        } else {
+          confb[[i]]=data.matrix(datab2[[i]][c(5:r)])
+          medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=cbind(datab2[[i]][["exposure"]],confb[[i]]),print=F,offset=datab2[[i]][["zioff"]])
+          IEb[[i]]=(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)*(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+sum(medregb[[i]][["Aest"]][c(3:k)]*C))-exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:k)]*C)))
+          PIEb[[i]]=(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)*(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+sum(medregb[[i]][["Aest"]][c(3:k)]*C))-exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:k)]*C)))
+        }
       }
-      CDEb[[i]]=(outregb[[i]]$coefficients[[2]]+outregb[[i]]$coefficients[[4]]*M)*(X-Xstar)
+
+
+      CDEb[[i]]=(outregb[[i]]$coefficients[[2]]+outregb[[i]]$coefficients[[4]]*(M/OFF))*(X-Xstar)
       NDEb[[i]]=outregb[[i]]$coefficients[[2]]*(X-Xstar)+outregb[[i]]$coefficients[[4]]*(X-Xstar)*exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]]$Aest[c(3:k)]*C))
       Intrefb[[i]]=NDEb[[i]]-CDEb[[i]]
       TEb[[i]]=NDEb[[i]]+IEb[[i]]
@@ -781,8 +898,7 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
   print(outprint)
 
   return(output)
-  }
-
+}
 
 
 
@@ -796,7 +912,8 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
 #' have the same sample size. Binary variables must be dummy coded prior.
 #' A Poisson regression with robust standard errors were used to obtain direct and indirect
 #' effect estimates on a risk ratio scale because odds ratios are a non-collapsible measure which
-#' can cause issues in a mediation framework (see Vanderweele 2016).
+#' can cause issues in a mediation framework (see Vanderweele 2016). A logistic-regression can be
+#' specified for rare outcomes.
 #' @param outcome is the binary or count outcome variable
 #' @param mediator is the zero-inflated mediator variable, currently only 1 mediator variable is allowed
 #' @param exposure is the primary exposure being considered, only 1 is allowed
@@ -807,6 +924,9 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
 #' @param C is a vector for theoretical values of each confounder. By default each each value of C will be the mean value of each confounder.
 #' @param error ='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method
 #' @param robust indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.
+#' @param zioff (optional) use to specify an offset variable within the MZIP mediator model. Note: Mediator/Offset is used in the outcome model
+#' @param OFF is an offset is specified a fixed value of the offset variable is required for computation of effects. By default the mean is used.
+#' @param rare set to TRUE of the outcome is rare and a logistic-regression should be used instead. Default is FALSE using robust Poisson model
 #' @return The function will return a list of 12 elements.
 #'     GLM is the results of regressing the mediator+exposure+confounder on the outcome using a Poisson model with robust standard errors \cr
 #'     MZIP is the results of regressing the exposure and confounders on the mediator using the MZIP model \cr
@@ -824,7 +944,8 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
 #'     #Example with delta method
 #'     zimed=binoutzimed(outcome=mzipmed_data$binY,mediator=mzipmed_data$ziM,
 #'                      exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-#'                      mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0)
+#'                      mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,
+#'                      zioff=NULL,OFF=NULL,rare=FALSE)
 #'
 #'     #Example using bootstrapping, 10 iterations are used for succinctness
 #'     zimed2=binoutzimed(outcome=mzipmed_data$binY,mediator=mzipmed_data$ziM,
@@ -833,14 +954,31 @@ lmoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X
 #' @export
 
 
-binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,Xstar=0,error='Delta',robust=FALSE){
+binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,Xstar=0,error='Delta',robust=FALSE,zioff=NULL,rare=FALSE,OFF=NULL){
   glmout=data.frame(outcome)
-  if (is.null(confounder)){
-    glmpred=data.frame(exposure,mediator)
-    medreg=mzip(y=mediator,pred=exposure,print=F)
-  } else{
-    glmpred=data.frame(exposure,mediator,confounder)
-    medreg=mzip(y=mediator,pred=cbind(exposure,confounder),print=F)
+
+  if (is.null(zioff)){
+    if (is.null(confounder)){
+      glmpred=data.frame(exposure,mediator)
+      medreg=mzip(y=mediator,pred=exposure,print=F)
+      alldata=data.frame(outcome, mediator, exposure)
+    } else{
+      glmpred=data.frame(exposure,mediator,confounder)
+      medreg=mzip(y=mediator,pred=cbind(exposure,confounder),print=F)
+      alldata=data.frame(outcome, mediator, exposure, confounder)
+    }
+  } else {
+    if (is.null(confounder)){
+      medrate=mediator/zioff
+      glmpred=data.frame(exposure,medrate)
+      medreg=mzip(y=mediator, pred=exposure, print=F, offset=zioff)
+      alldata=data.frame(outcome, mediator, exposure, zioff, medrate)
+    } else{
+      medrate=mediator/zioff
+      glmpred=data.frame(exposure,medrate,confounder)
+      medreg=mzip(y=mediator,pred=cbind(exposure,confounder),print=F,offset=zioff)
+      alldata=data.frame(outcome, mediator, exposure, confounder, zioff, medrate)
+    }
   }
   #as.formula and lm part of stats package
   glmdata=data.frame(glmout,glmpred)
@@ -848,7 +986,12 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
 
   m=ncol(glmdata)-1
   r=ncol(glmdata)
-  outreg=robust::glmRob(f,data=glmdata,family=stats::poisson())
+
+  if (rare){
+    outreg=stats::glm(f,data=glmdata,family=stats::binomial)
+  } else {
+    outreg=stats::glm(f,data=glmdata,family=stats::poisson())
+  }
 
   if (!is.null(confounder)){
     if (is.null(C)){
@@ -857,20 +1000,30 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
     }
   }
 
+  if(!is.null(zioff)){
+    if (is.null(OFF)){
+      OFF=mean(zioff)
+    }
+  }
+
+  if(is.null(zioff)){
+    OFF=1
+  }
+
   #Direct Effect
   RRDE=exp(outreg$coefficients[[2]]*(X-Xstar))
 
   #Indirect effect
   if (is.null(confounder)){
     RRIE=((1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))*(exp(medreg$Gest[1]+medreg$Gest[2]*X)+
-                                                          exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp(outreg$coefficients[[3]])-1))))/
+                                                          exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp(outreg$coefficients[[3]]/OFF)-1))))/
       ((1+exp(medreg$Gest[1]+medreg$Gest[2]*X))*(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)+
-                                                   exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]])-1))))
+                                                   exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]/OFF)-1))))
   } else{
     RRIE=((1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))*(exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))+
-                                                                                          exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]])-1))))/
+                                                                                          exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]/OFF)-1))))/
       ((1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))*(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))+
-                                                                                   exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]])-1))))
+                                                                                   exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]/OFF)-1))))
   }
   #Proportion Mediated
   RRTE=RRIE*RRDE
@@ -884,23 +1037,23 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
       GamDE=c(0,0,0,0,0,X-Xstar,0)
       P=exp(medreg$Gest[1]+medreg$Gest[2]*X)
       S=exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)
-      V=exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp(outreg$coefficients[[3]])-1))
-      W=exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]])-1))
+      V=exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp(outreg$coefficients[[3]]/OFF)-1))
+      W=exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]/OFF)-1))
       H=P+V
       J=S+W
 
-      r1=(S/(1+S))-(P/(1+P))+((P+(exp(outreg$coefficients[[3]])-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H)-
-        ((S+(exp(outreg$coefficients[[3]])-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J)
-      r2=Xstar*((S/(1+S))-((S+(exp(outreg$coefficients[[3]])-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J))+
-        X*(-(P/(1+P))+((P+(exp(outreg$coefficients[[3]])-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H))
-      a1=(((exp(outreg$coefficients[[3]])-1)*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X))/H)-
-        (((exp(outreg$coefficients[[3]])-1)*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/J)
-      a2=X*(((exp(outreg$coefficients[[3]])-1)*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X))/H)-
-        Xstar*(((exp(outreg$coefficients[[3]])-1)*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/J)
+      r1=(S/(1+S))-(P/(1+P))+((P+(exp(outreg$coefficients[[3]]/OFF)-1)*V*OFF*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H)-
+        ((S+(exp(outreg$coefficients[[3]]/OFF)-1)*W*OFF*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J)
+      r2=Xstar*((S/(1+S))-((S+(exp(outreg$coefficients[[3]]/OFF)-1)*W*OFF*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J))+
+        X*(-(P/(1+P))+((P+(exp(outreg$coefficients[[3]]/OFF)-1)*V*OFF*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H))
+      a1=(((exp(outreg$coefficients[[3]]/OFF)-1)*(P+1)*V*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X))/H)-
+        (((exp(outreg$coefficients[[3]]/OFF)-1)*(S+1)*W*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/J)
+      a2=X*(((exp(outreg$coefficients[[3]]/OFF)-1)*(P+1)*V*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X))/H)-
+        Xstar*(((exp(outreg$coefficients[[3]]/OFF)-1)*(S+1)*W*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/J)
       t1=0
       t2=0
-      t3=(((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]))/H)
-      -(((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]))/J)
+      t3=(1/OFF)*(((P+1)*V*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]))/H)
+      -(1/OFF)*(((S+1)*W*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]))/J)
 
 
       GamIE=c(r1,r2,a1,a2,t1,t2,t3)
@@ -910,25 +1063,25 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
 
       P=exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))
       S=exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))
-      V=exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]])-1))
-      W=exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]])-1))
+      V=exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]/OFF)-1))
+      W=exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]/OFF)-1))
       H=P+V
       J=S+W
 
-      r1=(S/(1+S))-(P/(1+P))+((P+(exp(outreg$coefficients[[3]])-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H)-
-        ((S+(exp(outreg$coefficients[[3]])-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J)
-      r2=Xstar*((S/(1+S))-((S+(exp(outreg$coefficients[[3]])-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J))+
-        X*(-(P/(1+P))+((P+(exp(outreg$coefficients[[3]])-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H))
+      r1=(S/(1+S))-(P/(1+P))+((P+(exp(outreg$coefficients[[3]]/OFF)-1)*V*OFF*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H)-
+        ((S+(exp(outreg$coefficients[[3]]/OFF)-1)*W*OFF*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J)
+      r2=Xstar*((S/(1+S))-((S+(exp(outreg$coefficients[[3]]/OFF)-1)*W*OFF*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J))+
+        X*(-(P/(1+P))+((P+(exp(outreg$coefficients[[3]]/OFF)-1)*V*OFF*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H))
       r3=C*r1
-      a1=(((exp(outreg$coefficients[[3]])-1)*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))/H)-
-        (((exp(outreg$coefficients[[3]])-1)*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/J)
-      a2=X*(((exp(outreg$coefficients[[3]])-1)*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))/H)-
-        Xstar*(((exp(outreg$coefficients[[3]])-1)*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/J)
+      a1=(((exp(outreg$coefficients[[3]]/OFF)-1)*(P+1)*V*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))/H)-
+        (((exp(outreg$coefficients[[3]]/OFF)-1)*(S+1)*W*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/J)
+      a2=X*(((exp(outreg$coefficients[[3]]/OFF)-1)*(P+1)*V*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))/H)-
+        Xstar*(((exp(outreg$coefficients[[3]]/OFF)-1)*(S+1)*W*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/J)
       a3=C*a1
       t1=0
       t2=0
-      t3=(((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]))/H)+
-        -(((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]))/J)
+      t3=(1/OFF)*(((P+1)*V*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X+(outreg$coefficients[[3]]/OFF)))/H)+
+        -(1/OFF)*(((S+1)*W*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+(outreg$coefficients[[3]]/OFF)))/J)
       t4=C*0
 
 
@@ -942,7 +1095,12 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
     } else {
       MZIPCov=medreg$Cov
     }
-    lmCov=outreg$cov #uses stats package
+
+    if (rare){
+      lmCov=stats::vcov(outreg)
+    } else {
+      lmCov=sandwich::vcovHC(outreg) #uses stats package
+    }
 
     nlm=nrow(lmCov)
     nMZI=nrow(MZIPCov)
@@ -984,23 +1142,52 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
     logRRIEb=list()
     logRRTEb=list()
     for (i in 1:n){
-      datab[[i]]=sample(1:nrow(glmdata),replace=T)
-      datab2[[i]]=glmdata[datab[[i]],]
-      outregb[[i]]=robust::glmRob(f,data=datab2[[i]],family=stats::poisson())
-      if (is.null(confounder)){
-        medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=datab2[[i]][["exposure"]],print=F)
-        RRIEb[[i]]=((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X)+
-                                                                                exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X))))*(exp(outregb[[i]]$coefficients[[3]])-1))))/
-          ((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar)+
-                                                                   exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))))*(exp(outregb[[i]]$coefficients[[3]])-1))))
+      datab[[i]]=sample(1:nrow(alldata),replace=T)
+      datab2[[i]]=alldata[datab[[i]],]
+
+      if (rare){
+        outregb[[i]]=stats::glm(f,data=datab2[[i]],family=stats::binomial)
       } else {
-        confb[[i]]=data.matrix(datab2[[i]][c(4:r)])
-        medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=cbind(datab2[[i]][["exposure"]],confb[[i]]),print=F)
-        RRIEb[[i]]=((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
-                                                                                                                      exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]])-1))))/
-          ((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
-                                                                                                         exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]])-1))))
+        outregb[[i]]=stats::glm(f,data=datab2[[i]],family=stats::poisson())
       }
+
+      if (is.null(zioff)){
+        if (is.null(confounder)){
+          medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=datab2[[i]][["exposure"]],print=F)
+          RRIEb[[i]]=((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X)+
+                                                                                  exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X))))*(exp(outregb[[i]]$coefficients[[3]])-1))))/
+            ((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar)+
+                                                                     exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))))*(exp(outregb[[i]]$coefficients[[3]])-1))))
+        } else {
+          confb[[i]]=data.matrix(datab2[[i]][c(4:r)])
+          medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=cbind(datab2[[i]][["exposure"]],confb[[i]]),print=F)
+          RRIEb[[i]]=((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
+                                                                                                                        exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]])-1))))/
+            ((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
+                                                                                                           exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]])-1))))
+        }
+      } else {
+        if (is.null(confounder)){
+          medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=datab2[[i]][["exposure"]],print=F,offset=datab2[[i]][["zioff"]])
+          RRIEb[[i]]=((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X)+
+                                                                                  exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+log(OFF)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X))))*(exp(outregb[[i]]$coefficients[[3]]/OFF)-1))))/
+            ((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar)+
+                                                                     exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+log(OFF)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))))*(exp(outregb[[i]]$coefficients[[3]]/OFF)-1))))
+
+        } else {
+          confb[[i]]=data.matrix(datab2[[i]][c(4:r)])
+          medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=cbind(datab2[[i]][["exposure"]],confb[[i]]),print=F,offset=datab2[[i]][["zioff"]])
+          RRIEb[[i]]=((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
+                                                                                                                        exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]]/OFF)-1))))/
+            ((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
+                                                                                                           exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]]/OFF)-1))))
+
+        }
+      }
+
+
+
+
       RRDEb[[i]]=exp(outregb[[i]]$coefficients[[2]]*(X-Xstar))
       RRTEb[[i]]=RRIEb[[i]]*RRDEb[[i]]
 
@@ -1038,6 +1225,7 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
 }
 
 
+
 #' Mediation Analysis for Zero-Inflated Count Mediators using MZIP with Exposure-Mediator Interactions (Binary/Count Outcome)
 #'
 #' This function will do the same thing as the binoutzimed function, but includes an exposure-mediator interaction.
@@ -1053,6 +1241,9 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
 #' @param M is a fixed value for the mediator, M. If M is not specified, M will be set to its mean value
 #' @param error ='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method
 #' @param robust indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.
+#' @param zioff (optional) use to specify an offset variable within the MZIP mediator model. Note: Mediator/Offset is used in the outcome model
+#' @param OFF if an offset is specified a fixed value of the offset variable is required for derviation of effects. By default the mean is used.
+#' @param rare set to TRUE of the outcome is rare and a logistic-regression should be used instead. Default is FALSE using robust Poisson model
 #' @return The function will return a list of 34 elements.
 #'     GLM is the results of regressing the mediator+exposure+confounder on the outcome using a Poisson model with robust standard errors. To assess interaction effect individually look in the glm statement at the 4th parameter estimate \cr
 #'     MZIP is the results of regressing the exposure and confounders on the mediator using the MZIP model \cr
@@ -1093,20 +1284,41 @@ binoutzimed=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1
 #'    #This builds upon function without interaction
 #'     zimmed=binoutzimedint(outcome=mzipmed_data$binY,mediator=mzipmed_data$ziM,
 #'                    exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-#'                    mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,M=NULL,C=NULL)
-
+#'                    mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,M=NULL,
+#'                    C=NULL,zioff=NULL,OFF=NULL,rare=FALSE)
 #' @export
 
-binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,Xstar=0,M=NULL,error='Delta',robust=FALSE){
+binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,X=1,Xstar=0,M=NULL,error='Delta',robust=FALSE,zioff=NULL,rare=FALSE,OFF=NULL){
   #lm, as.formula, quantile in stats, colSds in matrixStats
-  interaction=mediator*exposure
-  glmout=data.frame(outcome)
-  if (is.null(confounder)){
-    glmpred=data.frame(exposure,mediator,interaction)
-    medreg=mzip(y=mediator,pred=exposure,print=F)
+  if (is.null(zioff)){
+    interaction=mediator*exposure
   } else{
-    glmpred=data.frame(exposure,mediator,interaction,confounder)
-    medreg=mzip(y=mediator,pred=cbind(exposure,confounder),print=F)
+    interaction=mediator*exposure/zioff
+  }
+  glmout=data.frame(outcome)
+
+  if (is.null(zioff)){
+    if (is.null(confounder)){
+      glmpred=data.frame(exposure,mediator,interaction)
+      medreg=mzip(y=mediator,pred=exposure,print=F)
+      alldata=alldata=data.frame(outcome, mediator, exposure, interaction)
+    } else{
+      glmpred=data.frame(exposure,mediator,interaction,confounder)
+      medreg=mzip(y=mediator,pred=cbind(exposure,confounder),print=F)
+      alldata=alldata=data.frame(outcome, mediator, exposure, interaction, confounder)
+    }
+  } else {
+    if (is.null(confounder)){
+      medrate=mediator/zioff
+      glmpred=data.frame(exposure,medrate, interaction)
+      medreg=mzip(y=mediator, pred=exposure, print=F, offset=zioff)
+      alldata=data.frame(outcome, mediator, exposure, interaction, zioff, medrate)
+    } else{
+      medrate=mediator/zioff
+      glmpred=data.frame(exposure,medrate, interaction, confounder)
+      medreg=mzip(y=mediator,pred=cbind(exposure,confounder),print=F,offset=zioff)
+      alldata=data.frame(outcome, mediator, exposure, interaction, confounder, zioff, medrate)
+    }
   }
 
   glmdata=data.frame(glmout,glmpred)
@@ -1114,7 +1326,12 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
 
   m=ncol(glmdata)-2
   r=ncol(glmdata)
-  outreg=robust::glmRob(f,data=glmdata,family=stats::poisson())
+
+  if (rare){
+    outreg=stats::glm(f,data=glmdata,family=stats::binomial)
+  } else{
+    outreg=stats::glm(f,data=glmdata,family=stats::poisson())
+  }
 
   if (!is.null(confounder)){
     if (is.null(C)){
@@ -1126,34 +1343,44 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
     M=mean(mediator)
   }
 
+  if(!is.null(zioff)){
+    if (is.null(OFF)){
+      OFF=mean(zioff)
+    }
+  }
+
+  if(is.null(zioff)){
+    OFF=1
+  }
+
   #Controlled Direct Effect
-  RRCDE=exp((outreg$coefficients[[2]]+outreg$coefficients[[4]]*M)*(X-Xstar))
+  RRCDE=exp((outreg$coefficients[[2]]+outreg$coefficients[[4]]*(M/OFF))*(X-Xstar))
 
 
   #Natural Direct Effect
   if (is.null(confounder)){
     RRNDE=((exp(outreg$coefficients[[2]]*X))*(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)+
-                                                exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))))/
+                                                exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1))))/
       ((exp(outreg$coefficients[[2]]*Xstar))*(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)+
-                                                exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))))
+                                                exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1))))
   } else{
     RRNDE=((exp(outreg$coefficients[[2]]*X))*(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))+
-                                                exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))))/
+                                                exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1))))/
       ((exp(outreg$coefficients[[2]]*Xstar))*(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))+
-                                                exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))))
+                                                exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1))))
   }
 
   #Indirect Effect
   if (is.null(confounder)){
     RRIE=((1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))*(exp(medreg$Gest[1]+medreg$Gest[2]*X)+
-                                                          exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))))/
+                                                          exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1))))/
       ((1+exp(medreg$Gest[1]+medreg$Gest[2]*X))*(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)+
-                                                   exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))))
+                                                   exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1))))
   } else{
     RRIE=((1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))*(exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))+
-                                                                                          exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))))/
+                                                                                          exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1))))/
       ((1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))*(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))+
-                                                                                   exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))))
+                                                                                   exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1))))
   }
 
 
@@ -1161,14 +1388,14 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
   #Pure Indirect Effect
   if (is.null(confounder)){
     RRPIE=((1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))*(exp(medreg$Gest[1]+medreg$Gest[2]*X)+
-                                                           exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))))/
+                                                           exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1))))/
       ((1+exp(medreg$Gest[1]+medreg$Gest[2]*X))*(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)+
-                                                   exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))))
+                                                   exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1))))
   } else{
     RRPIE=((1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))*(exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))+
-                                                                                           exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))))/
+                                                                                           exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1))))/
       ((1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))*(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))+
-                                                                                   exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))))
+                                                                                   exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1))))
   }
 
 
@@ -1176,8 +1403,8 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
   PM=RRNDE*(RRIE-1)/(RRIE*RRNDE-1)
 
   #kappa
-  kappa=(exp(outreg$coefficients[[3]]*M+outreg$coefficients[[4]]*Xstar*M)*(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/
-    ((exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))+exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)))
+  kappa=(exp(outreg$coefficients[[3]]*(M/OFF)+outreg$coefficients[[4]]*Xstar*(M/OFF))*(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/
+    ((exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))+exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)))
 
 
   #Total Effect
@@ -1208,265 +1435,265 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
   if (error=='Delta'){
     #Standard Errors with Delta Method
     if (is.null(confounder)){
-      GamCDE=c(0,0,0,0,0,1,M,0)
+      GamCDE=c(0,0,0,0,0,1,M/OFF,0)
 
       Q=(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)+
-           exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)))
+           exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)))
       R=(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)+
-           exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)))
+           exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)))
       B=exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)
       D=Q-B
       G=R-B
 
-      dr1=((B+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*D*B*
-              exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/Q)-((B+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*G*B*
+      dr1=((B+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*D*B*OFF*
+              exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/Q)-((B+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*G*B*OFF*
                                                                exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/R)
       dr2=dr1*Xstar
-      da1=(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*D*(B+1)*
+      da1=(((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*D*(B+1)*OFF*
               exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/Q)-
-        (((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*G*(B+1)*
+        (((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*G*(B+1)*OFF*
             exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/R)
       da2=da1*Xstar
       dt1=0
       dt2=X-Xstar
-      dt3=(((B+1)*D*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/Q)-
-        (((B+1)*G*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/R)
-      dt4=((X*(B+1)*D*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/Q)-
-        ((Xstar*(B+1)*G*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/R)
+      dt3=(1/OFF)*(((B+1)*D*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF))/Q)-
+        (1/OFF)*(((B+1)*G*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF))/R)
+      dt4=(1/OFF)*((X*(B+1)*D*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF))/Q)-
+        (1/OFF)*((Xstar*(B+1)*G*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF))/R)
       GamNDE=c(dr1,dr2,da1,da2,dt1,dt2,dt3,dt4)
 
 
       P=exp(medreg$Gest[1]+medreg$Gest[2]*X)
       S=exp(medreg$Gest[1]+medreg$Gest[2]*Xstar)
-      V=exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))
-      W=exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))
+      V=exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1))
+      W=exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1))
       H=P+V
       J=S+W
 
-      nr1=(S/(1+S))-(P/(1+P))+((P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H)-
-        ((S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J)
-      nr2=Xstar*((S/(1+S))-((S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J))+
-        X*(-(P/(1+P))+((P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H))
-      na1=(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X))/H)-
-        (((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/J)
-      na2=X*(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X))/H)-
-        Xstar*(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/J)
+      nr1=(S/(1+S))-(P/(1+P))+((P+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*V*OFF*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H)-
+        ((S+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*W*OFF*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J)
+      nr2=Xstar*((S/(1+S))-((S+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*W*OFF*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J))+
+        X*(-(P/(1+P))+((P+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*V*OFF*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H))
+      na1=(((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*(P+1)*V*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X))/H)-
+        (((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*(S+1)*W*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/J)
+      na2=X*(((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*(P+1)*V*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X))/H)-
+        Xstar*(((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*(S+1)*W*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/J)
       nt1=0
       nt2=0
-      nt3=(((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/H)
-      -(((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/J)
+      nt3=(((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF))/H)
+      -(((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF))/J)
       nt4=X*nt3
 
       GamIE=c(nr1,nr2,na1,na2,nt1,nt2,nt3,nt4)
 
-      V2=exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))
-      W2=exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))
+      V2=exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1))
+      W2=exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1))
       H2=P+V2
       J2=S+W2
 
-      pr1=(S/(1+S))-(P/(1+P))+((P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H2)-
-        ((S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J2)
-      pr2=Xstar*((S/(1+S))-((S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J2))+
-        X*(-(P/(1+P))+((P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H2))
-      pa1=(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X))/H2)-
-        (((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/J2)
-      pa2=X*(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X))/H2)-
-        Xstar*(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/J2)
+      pr1=(S/(1+S))-(P/(1+P))+((P+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*V2*OFF*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H2)-
+        ((S+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*W2*OFF*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J2)
+      pr2=Xstar*((S/(1+S))-((S+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*W2*OFF*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+medreg$Gest[1]+medreg$Gest[2]*Xstar)))/J2))+
+        X*(-(P/(1+P))+((P+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*V2*OFF*(exp(medreg$Aest[1]+medreg$Aest[2]*X+medreg$Gest[1]+medreg$Gest[2]*X)))/H2))
+      pa1=(((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*(P+1)*V2*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X))/H2)-
+        (((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*(S+1)*W2*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/J2)
+      pa2=X*(((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*(P+1)*V2*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X))/H2)-
+        Xstar*(((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*(S+1)*W2*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))/J2)
       pt1=0
       pt2=0
-      pt3=(((P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/H2)+
-        -(((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/J2)
+      pt3=(((P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF))/H2)+
+        -(((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF))/J2)
       pt4=Xstar*pt3
 
       GamPIE=c(pr1,pr2,pa1,pa2,pt1,pt2,pt3,pt4)
 
-      Z=exp((X-Xstar)*outreg$coefficients[[2]]-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
+      Z=exp((X-Xstar)*outreg$coefficients[[2]]-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
 
-      mr1=((-Z*H*P)/((1+P)^2))+(Z*(P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*P*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+P)+
-        ((Z*J*S)/((1+S)^2))-(Z*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*S*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar)))/(1+S)+
-        ((exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2*P)/((1+P)^2))-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*P*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+P)+
-        ((-exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))+(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*S*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+S)
-      mr2=((-X*Z*H*P)/((1+P)^2))+(Z*X*(P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*P*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+P)+
-        ((Xstar*Z*J*S)/((1+S)^2))-(Z*Xstar*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*S*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar)))/(1+S)+
-        ((X*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2*P)/((1+P)^2))-(X*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*P*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+P)+
-        ((-Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))+(Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*S*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+S)
-      ma1=(Z/(1+P))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X))-
-        (Z/(1+S))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))-
-        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X))+
-        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
-      ma2= (X*Z/(1+P))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X))-
-        (Xstar*Z/(1+S))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))-
-        (X*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X))+
-        (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
+      mr1=((-Z*H*P)/((1+P)^2))+(Z*(P+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*V*P*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+P)+
+        ((Z*J*S)/((1+S)^2))-(Z*(S+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*W*S*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar)))/(1+S)+
+        ((exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2*P)/((1+P)^2))-(exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*V2*P*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+P)+
+        ((-exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))+(exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*W2*S*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+S)
+      mr2=((-X*Z*H*P)/((1+P)^2))+(Z*X*(P+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*V*P*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+P)+
+        ((Xstar*Z*J*S)/((1+S)^2))-(Z*Xstar*(S+((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*W*S*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar)))/(1+S)+
+        ((X*exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2*P)/((1+P)^2))-(X*exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*V2*P*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+P)+
+        ((-Xstar*exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))+(Xstar*exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*W2*S*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+S)
+      ma1=(Z/(1+P))*((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*(P+1)*V*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X))-
+        (Z/(1+S))*((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*(S+1)*W*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))-
+        (exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*(P+1)*V2*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X))+
+        (exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*(S+1)*W2*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
+      ma2= (X*Z/(1+P))*((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*(P+1)*V*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X))-
+        (Xstar*Z/(1+S))*((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*(S+1)*W*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))-
+        (X*exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*(P+1)*V2*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X))+
+        (Xstar*exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*(S+1)*W2*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
       mt1=0
       mt2=((X-Xstar)*Z*H/(1+P))-((X-Xstar)*Z*J/(1+S))
-      mt3=-M*((Z*H)/(1+P)-(Z*J)/(1+S)-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2)/(1+P)+(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2)/(1+S))+
-        (Z/(1+P))*((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
-        (Z/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
-        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))+
-        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
-      mt4=-M*Xstar*((Z*H)/(1+P)-(Z*J)/(1+S)-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2)/(1+P)+(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2)/(1+S))+
-        (Z*X/(1+P))*((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
-        (Z*X/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
-        (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))+
-        (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
+      mt3=-(M/OFF)*((Z*H)/(1+P)-(Z*J)/(1+S)-(exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2)/(1+P)+(exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2)/(1+S))+
+        (Z/(1+P))*((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF))-
+        (Z/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF))-
+        (exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))+
+        (exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
+      mt4=-(M/OFF)*Xstar*((Z*H)/(1+P)-(Z*J)/(1+S)-(exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2)/(1+P)+(exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2)/(1+S))+
+        (Z*X/(1+P))*((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF))-
+        (Z*X/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF))-
+        (Xstar*exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF))+
+        (Xstar*exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF))
 
       GamIntmed=c(mr1,mr2,ma1,ma2,mt1,mt2,mt3,mt4)
 
-      rr1=(-(Z*J*S)/((1+S)^2))+(Z*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*S*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar)))/(1+S)+
-        ((exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*S*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+S)
+      rr1=(-(Z*J*S)/((1+S)^2))+(Z*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*S*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar)))/(1+S)+
+        ((exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))-(exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*W2*S*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X)))/(1+S)
       rr2=Xstar*rr1
-      ra1=(Z/(1+S))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))-
-        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
+      ra1=(Z/(1+S))*((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*(S+1)*W*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))-
+        (exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*(S+1)*W2*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar))
       ra2=Xstar*ra1
       rt1=0
       rt2=(Xstar*Z*J/(1+S))-(X-Xstar)*RRCDE
-      rt3=-M*((Z*J)/(1+S)-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2)/(1+S))+
-        (Z/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
-        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
-      rt4=-M*Xstar*((Z*J)/(1+S)-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2)/(1+S))+
-        (Z*X/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
-        (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
-      -M*(X-Xstar)*RRCDE
+      rt3=-(M/OFF)*((Z*J)/(1+S)-(exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2)/(1+S))+
+        (Z/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF))-
+        (exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF))
+      rt4=-(M/OFF)*Xstar*((Z*J)/(1+S)-(exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2)/(1+S))+
+        (Z*X/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF))-
+        (Xstar*exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF))
+      -(M/OFF)*(X-Xstar)*RRCDE
 
       GamIntref=c(rr1,rr2,ra1,ra2,rt1,rt2,rt3,rt4)
 
     } else {
 
-      GamCDE=c(0,0,0*C,0,0,0*C,0,1,0,M,0*C)
+      GamCDE=c(0,0,0*C,0,0,0*C,0,1,0,M/OFF,0*C)
 
       Q=(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))+
-           exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)))
+           exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)))
       R=(exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))+
-           exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)))
+           exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)))
       B=exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))
       D=Q-B
       G=R-B
 
-      dr1=((B+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*D*B*
-              exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/Q)-((B+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*G*B*
+      dr1=((B+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*D*B*OFF*
+              exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/Q)-((B+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*G*B*OFF*
                                                                                                exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/R)
       dr2=dr1*Xstar
       dr3=dr1*C
-      da1=(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*D*(B+1)*
+      da1=(((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*D*(B+1)*OFF*
               exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/Q)-
-        (((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*G*(B+1)*
+        (((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*G*(B+1)*OFF*
             exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/R)
       da2=da1*Xstar
       da3=da1*C
       dt1=0
       dt2=X-Xstar
-      dt3=(((B+1)*D*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/Q)-
-        (((B+1)*G*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/R)
-      dt4=((X*(B+1)*D*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/Q)-
-        ((Xstar*(B+1)*G*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/R)
+      dt3=(((B+1)*D*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF))/Q)-
+        (((B+1)*G*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF))/R)
+      dt4=((X*(B+1)*D*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF))/Q)-
+        ((Xstar*(B+1)*G*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF))/R)
       dt5=C*0
       GamNDE=c(dr1,dr2,dr3,da1,da2,da3,dt1,dt2,dt3,dt4,dt5)
 
       P=exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))
       S=exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))
-      V=exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))
-      W=exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1))
+      V=exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1))
+      W=exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1))
       H=P+V
       J=S+W
 
-      nr1=(S/(1+S))-(P/(1+P))+((P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H)-
-        ((S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J)
-      nr2=Xstar*((S/(1+S))-((S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J))+
-        X*(-(P/(1+P))+((P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H))
+      nr1=(S/(1+S))-(P/(1+P))+((P+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*V*OFF*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H)-
+        ((S+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*W*OFF*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J)
+      nr2=Xstar*((S/(1+S))-((S+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*W*OFF*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J))+
+        X*(-(P/(1+P))+((P+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*V*OFF*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H))
       nr3=C*nr1
-      na1=(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))/H)-
-        (((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/J)
-      na2=X*(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))/H)-
-        Xstar*(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/J)
+      na1=(((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*(P+1)*V*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))/H)-
+        (((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*(S+1)*W*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/J)
+      na2=X*(((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*(P+1)*V*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))/H)-
+        Xstar*(((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*(S+1)*W*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/J)
       na3=C*na1
       nt1=0
       nt2=0
-      nt3=(((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/H)
-      -(((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))/J)
+      nt3=(((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF))/H)
+      -(((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF))/J)
       nt4=X*nt3
       nt5=C*0
 
 
       GamIE=c(nr1,nr2,nr3,na1,na2,na3,nt1,nt2,nt3,nt4,nt5)
 
-      V2=exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))
-      W2=exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1))
+      V2=exp((exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1))
+      W2=exp((exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C)))))*(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1))
       H2=P+V2
       J2=S+W2
 
-      pr1=(S/(1+S))-(P/(1+P))+((P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H2)-
-        ((S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J2)
-      pr2=Xstar*((S/(1+S))-((S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J2))+
-        X*(-(P/(1+P))+((P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H2))
+      pr1=(S/(1+S))-(P/(1+P))+((P+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*V2*OFF*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H2)-
+        ((S+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*W2*OFF*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J2)
+      pr2=Xstar*((S/(1+S))-((S+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*W2*OFF*(exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*Xstar+sum(medreg[["Gest"]][c(3:m)]*C))))/J2))+
+        X*(-(P/(1+P))+((P+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*V2*OFF*(exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+medreg$Gest[1]+medreg$Gest[2]*X+sum(medreg[["Gest"]][c(3:m)]*C))))/H2))
       pr3=C*pr1
-      pa1=(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))/H2)-
-        (((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/J2)
-      pa2=X*(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))/H2)-
-        Xstar*(((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/J2)
+      pa1=(((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*(P+1)*V2*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))/H2)-
+        (((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*(S+1)*W2*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/J2)
+      pa2=X*(((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*(P+1)*V2*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))/H2)-
+        Xstar*(((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*(S+1)*W2*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))/J2)
       pa3=C*pa1
       pt1=0
       pt2=0
-      pt3=(((P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/H2)
-      -(((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/J2)
+      pt3=(((P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF))/H2)
+      -(((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF))/J2)
       pt4=Xstar*pt3
       pt5=C*0
 
       GamPIE=c(pr1,pr2,pr3,pa1,pa2,pa3,pt1,pt2,pt3,pt4,pt5)
 
-      Z=exp((X-Xstar)*outreg$coefficients[[2]]-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
+      Z=exp((X-Xstar)*outreg$coefficients[[2]]-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
 
-      mr1=((-Z*H*P)/((1+P)^2))+(Z*(P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*P*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+P)+
-        ((Z*J*S)/((1+S)^2))-(Z*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*S*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+S)+
-        ((exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2*P)/((1+P)^2))-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*P*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+P)-
-        ((-exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))+(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*S*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+S)
-      mr2=((-X*Z*H*P)/((1+P)^2))+(Z*X*(P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*V*P*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+P)+
-        ((Xstar*Z*J*S)/((1+S)^2))-(Z*Xstar*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*S*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+S)+
-        ((X*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2*P)/((1+P)^2))-(X*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*V2*P*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+P)-
-        ((-Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))+(Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*S*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+S)
+      mr1=((-Z*H*P)/((1+P)^2))+(Z*(P+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*V*P*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+P)+
+        ((Z*J*S)/((1+S)^2))-(Z*(S+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*W*S*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+S)+
+        ((exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2*P)/((1+P)^2))-(exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*V2*P*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+P)-
+        ((-exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))+(exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*W2*S*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+S)
+      mr2=((-X*Z*H*P)/((1+P)^2))+(Z*X*(P+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*V*P*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+P)+
+        ((Xstar*Z*J*S)/((1+S)^2))-(Z*Xstar*(S+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*W*S*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+S)+
+        ((X*exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2*P)/((1+P)^2))-(X*exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*V2*P*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+P)-
+        ((-Xstar*exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))+(Xstar*exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*W2*S*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+S)
       mr3=mr1*C
-      ma1=(Z/(1+P))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))-
-        (Z/(1+S))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))-
-        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))+
-        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))
-      ma2= (X*Z/(1+P))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))-
-        (Xstar*Z/(1+S))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))-
-        (X*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))+
-        (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))
+      ma1=(Z/(1+P))*((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*(P+1)*V*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))-
+        (Z/(1+S))*((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*(S+1)*W*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))-
+        (exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*(P+1)*V2*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))+
+        (exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*(S+1)*W2*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))
+      ma2= (X*Z/(1+P))*((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*(P+1)*V*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))-
+        (Xstar*Z/(1+S))*((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*(S+1)*W*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))-
+        (X*exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*(P+1)*V2*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)))+
+        (Xstar*exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*(S+1)*W2*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))
       ma3=ma1*C
       mt1=0
       mt2=((X-Xstar)*Z*H/(1+P))-((X-Xstar)*Z*J/(1+S))
-      mt3=-M*((Z*H)/(1+P)-(Z*J)/(1+S)-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2)/(1+P)+(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2)/(1+S))+
-        (Z/(1+P))*((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
-        (Z/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
-        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))+
-        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
-      mt4=-M*Xstar*((Z*H)/(1+P)-(Z*J)/(1+S)-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2)/(1+P)+(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2)/(1+S))+
-        (Z*X/(1+P))*((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
-        (Z*X/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
-        (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))+
-        (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
+      mt3=-(M/OFF)*((Z*H)/(1+P)-(Z*J)/(1+S)-(exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2)/(1+P)+(exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2)/(1+S))+
+        (Z/(1+P))*((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF))-
+        (Z/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF))-
+        (exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF))+
+        (exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF))
+      mt4=-(M/OFF)*Xstar*((Z*H)/(1+P)-(Z*J)/(1+S)-(exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*H2)/(1+P)+(exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2)/(1+S))+
+        (Z*X/(1+P))*((P+1)*V*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF))-
+        (Z*X/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF))-
+        (Xstar*exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+P))*((P+1)*V2*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C)+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF))+
+        (Xstar*exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF))
       mt5=0*C
 
       GamIntmed=c(mr1,mr2,mr3,ma1,ma2,ma3,mt1,mt2,mt3,mt4,mt5)
 
-      rr1=(-(Z*J*S)/((1+S)^2))+(Z*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*S*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+S)+
-        ((exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)-1)*W2*S*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+S)
+      rr1=(-(Z*J*S)/((1+S)^2))+(Z*(S+(exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)-1)*W*S*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+S)+
+        ((exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2*S)/((1+S)^2))-(exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+(exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*W2*S*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*X+sum(medreg[["Aest"]][c(3:m)]*C))))/(1+S)
       rr2=Xstar*rr1
       rr3=C*rr1
-      ra1=(Z/(1+S))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))*(S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))-
-        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((exp(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*(S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))
+      ra1=(Z/(1+S))*((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF)-1)*(S+1)*W*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))-
+        (exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((exp((outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF)-1)*(S+1)*W2*OFF*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)))
       ra2=Xstar*ra1
       ra3=C*ra1
       rt1=0
       rt2=(Xstar*Z*J/(1+S))-(X-Xstar)*RRCDE
-      rt3=-M*((Z*J)/(1+S)-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2)/(1+S))+
-        (Z/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
-        (exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
-      rt4=-M*Xstar*((Z*J)/(1+S)-(exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2)/(1+S))+
-        (Z*X/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*X))-
-        (Xstar*exp(-M*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))
-      -M*(X-Xstar)*RRCDE
+      rt3=-(M/OFF)*((Z*J)/(1+S)-(exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2)/(1+S))+
+        (Z/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF))-
+        (exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF))
+      rt4=-(M/OFF)*Xstar*((Z*J)/(1+S)-(exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))*J2)/(1+S))+
+        (Z*X/(1+S))*((S+1)*W*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*X)/OFF))-
+        (Xstar*exp(-(M/OFF)*(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar))/(1+S))*((S+1)*W2*exp(medreg$Aest[1]+medreg$Aest[2]*Xstar+sum(medreg[["Aest"]][c(3:m)]*C)+(outreg$coefficients[[3]]+outreg$coefficients[[4]]*Xstar)/OFF))
+      -(M/OFF)*(X-Xstar)*RRCDE
       rt5=C*0
 
       GamIntref=c(rr1,rr2,rr3,ra1,ra2,ra3,rt1,rt2,rt3,rt4,rt5)
@@ -1481,8 +1708,12 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
     } else {
       MZIPCov=medreg$Cov
     }
-    lmCov=outreg$cov #uses stats package
 
+    if (rare){
+      lmCov=stats::vcov(outreg)
+    } else {
+      lmCov=sandwich::vcovHC(outreg) #uses stats package
+    }
     nlm=nrow(lmCov)
     nMZI=nrow(MZIPCov)
     Topright=matrix(0,nMZI,nlm)
@@ -1557,47 +1788,96 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
     logRRCDEb=list()
     logRRPIEb=list()
     for (i in 1:n){
-      datab[[i]]=sample(1:nrow(glmdata),replace=T)
-      datab2[[i]]=glmdata[datab[[i]],]
-      outregb[[i]]=robust::glmRob(f,data=datab2[[i]],family=stats::poisson())
-      if (is.null(confounder)){
-        medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=datab2[[i]][["exposure"]],print=F)
-        RRNDEb[[i]]=((exp(outregb[[i]]$coefficients[[2]]*X))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar)+
-                                                                exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)-1))))/
-          ((exp(outregb[[i]]$coefficients[[2]]*Xstar))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar)+
-                                                          exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)-1))))
+      datab[[i]]=sample(1:nrow(alldata),replace=T)
+      datab2[[i]]=alldata[datab[[i]],]
 
-        RRIEb[[i]]=((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X)+
-                                                                                exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)-1))))/
-          ((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar)+
-                                                                   exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)-1))))
-        RRPIEb[[i]]=((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X)+
-                                                                                 exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)-1))))/
-          ((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar)+
-                                                                   exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)-1))))
-        kappab[[i]]=(exp(outregb[[i]]$coefficients[[3]]*M+outregb[[i]]$coefficients[[4]]*Xstar*M)*(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar)))/
-          ((exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))+exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)-1)))
-      } else {
-        confb[[i]]=data.matrix(datab2[[i]][c(5:r)])
-        medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=cbind(datab2[[i]][["exposure"]],confb[[i]]),print=F)
-        RRNDEb[[i]]=((exp(outregb[[i]]$coefficients[[2]]*X))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
-                                                                exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)-1))))/
-          ((exp(outregb[[i]]$coefficients[[2]]*Xstar))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
-                                                          exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)-1))))
-
-        RRIEb[[i]]=((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
-                                                                                                                      exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)-1))))/
-          ((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
-                                                                                                         exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)-1))))
-        RRPIEb[[i]]=((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
-                                                                                                                       exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)-1))))/
-          ((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
-                                                                                                         exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)-1))))
-        kappab[[i]]=(exp(outregb[[i]]$coefficients[[3]]*M+outregb[[i]]$coefficients[[4]]*Xstar*M)*(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C))))/
-          ((exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))+exp(-(exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)-1)))
-
+      if (rare){
+        outregb[[i]]=stats::glm(f,data=datab2[[i]],family=stats::binomial)
+      } else{
+        outregb[[i]]=stats::glm(f,data=datab2[[i]],family=stats::poisson())
       }
-      RRCDEb[[i]]=exp((outregb[[i]]$coefficients[[2]]+outregb[[i]]$coefficients[[4]]*M)*(X-Xstar))
+
+      if (is.null(zioff)){
+        if (is.null(confounder)){
+          medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=datab2[[i]][["exposure"]],print=F)
+          RRNDEb[[i]]=((exp(outregb[[i]]$coefficients[[2]]*X))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar)+
+                                                                  exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)-1))))/
+            ((exp(outregb[[i]]$coefficients[[2]]*Xstar))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar)+
+                                                            exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)-1))))
+
+          RRIEb[[i]]=((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X)+
+                                                                                  exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)-1))))/
+            ((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar)+
+                                                                     exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)-1))))
+          RRPIEb[[i]]=((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X)+
+                                                                                   exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)-1))))/
+            ((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar)+
+                                                                     exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)-1))))
+          kappab[[i]]=(exp(outregb[[i]]$coefficients[[3]]*M+outregb[[i]]$coefficients[[4]]*Xstar*M)*(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar)))/
+            ((exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))+exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)-1)))
+        } else {
+          confb[[i]]=data.matrix(datab2[[i]][c(5:r)])
+          medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=cbind(datab2[[i]][["exposure"]],confb[[i]]),print=F)
+          RRNDEb[[i]]=((exp(outregb[[i]]$coefficients[[2]]*X))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
+                                                                  exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)-1))))/
+            ((exp(outregb[[i]]$coefficients[[2]]*Xstar))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
+                                                            exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)-1))))
+
+          RRIEb[[i]]=((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
+                                                                                                                        exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)-1))))/
+            ((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
+                                                                                                           exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)-1))))
+          RRPIEb[[i]]=((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
+                                                                                                                         exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)-1))))/
+            ((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
+                                                                                                           exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)-1))))
+          kappab[[i]]=(exp(outregb[[i]]$coefficients[[3]]*M+outregb[[i]]$coefficients[[4]]*Xstar*M)*(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C))))/
+            ((exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))+exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp(outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)-1)))
+
+        }
+      } else {
+        if (is.null(confounder)){
+          medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=datab2[[i]][["exposure"]],print=F,offset=datab2[[i]][["zioff"]])
+          RRNDEb[[i]]=((exp(outregb[[i]]$coefficients[[2]]*X))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar)+
+                                                                  exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+log(OFF)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))))*(exp((outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)/OFF)-1))))/
+            ((exp(outregb[[i]]$coefficients[[2]]*Xstar))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar)+
+                                                            exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+log(OFF)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))))*(exp((outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)/OFF)-1))))
+
+          RRIEb[[i]]=((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X)+
+                                                                                  exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+log(OFF)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X))))*(exp((outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)/OFF)-1))))/
+            ((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar)+
+                                                                     exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+log(OFF)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))))*(exp((outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)/OFF)-1))))
+          RRPIEb[[i]]=((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X)+
+                                                                                   exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+log(OFF)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X))))*(exp((outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)/OFF)-1))))/
+            ((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar)+
+                                                                     exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+log(OFF)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))))*(exp((outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)/OFF)-1))))
+          kappab[[i]]=(exp(outregb[[i]]$coefficients[[3]]*(M/OFF)+outregb[[i]]$coefficients[[4]]*Xstar*(M/OFF))*(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar)))/
+            ((exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))+exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+log(OFF)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar))))*(exp((outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)/OFF)-1)))
+
+        } else {
+          confb[[i]]=data.matrix(datab2[[i]][c(5:r)])
+          medregb[[i]]=mzip(y=datab2[[i]][["mediator"]],pred=cbind(datab2[[i]][["exposure"]],confb[[i]]),print=F,offset=datab2[[i]][["zioff"]])
+          RRNDEb[[i]]=((exp(outregb[[i]]$coefficients[[2]]*X))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
+                                                                  exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp((outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)/OFF)-1))))/
+            ((exp(outregb[[i]]$coefficients[[2]]*Xstar))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
+                                                            exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp((outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)/OFF)-1))))
+
+          RRIEb[[i]]=((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
+                                                                                                                        exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp((outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)/OFF)-1))))/
+            ((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
+                                                                                                           exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp((outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*X)/OFF)-1))))
+          RRPIEb[[i]]=((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
+                                                                                                                         exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*X+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp((outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)/OFF)-1))))/
+            ((1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*X+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))*(exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C))+
+                                                                                                           exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp((outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)/OFF)-1))))
+          kappab[[i]]=(exp(outregb[[i]]$coefficients[[3]]*(M/OFF)+outregb[[i]]$coefficients[[4]]*Xstar*(M/OFF))*(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C))))/
+            ((exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))+exp((exp(medregb[[i]]$Aest[1]+medregb[[i]]$Aest[2]*Xstar+sum(medregb[[i]][["Aest"]][c(3:m)]*C)+log(OFF)+log(1+exp(medregb[[i]]$Gest[1]+medregb[[i]]$Gest[2]*Xstar+sum(medregb[[i]][["Gest"]][c(3:m)]*C)))))*(exp((outregb[[i]]$coefficients[[3]]+outregb[[i]]$coefficients[[4]]*Xstar)/OFF)-1)))
+
+
+        }
+      }
+
+      RRCDEb[[i]]=exp((outregb[[i]]$coefficients[[2]]+outregb[[i]]$coefficients[[4]]*(M/OFF))*(X-Xstar))
       RRTEb[[i]]=RRIEb[[i]]*RRNDEb[[i]]
       RRIntrefb[[i]]=((RRNDEb[[i]]-1)/kappab[[i]])-RRCDEb[[i]]+1
       RRIntmedb[[i]]=(RRTEb[[i]]-RRNDEb[[i]]-RRPIEb[[i]]+1)/kappab[[i]]
@@ -1674,8 +1954,7 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
   print(outprint)
 
   return(output)
-  }
-
+}
 
 
 
@@ -1689,7 +1968,8 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
 #' continuous mediators. Standard Errors for
 #' direct and indirect effects are computed using delta method or bootstrapping. Note: This function
 #' assumes that the outcome is continuous and all exposure, mediator, outcome, and confounder variables
-#' have the same sample size. Binary variables must be dummy coded prior.
+#' have the same sample size. Binary variables must be dummy coded prior. See vignette for information
+#' on use of the offset.
 #' @param outcome is the zero-inflated count outcome variable
 #' @param mediator is the continuous mediator variable, currently only 1 mediator variable is allowed
 #' @param exposure is the primary exposure being considered, only 1 is allowed
@@ -1699,6 +1979,7 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
 #' @param n is the number of repetition if bootstrapped errors are used. Default is 1000
 #' @param error ='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method
 #' @param robust indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.
+#' @param zioff (optional) use to specify an offset variable within the MZIP outcome model.
 #' @return The function will return a list of 12 elements.
 #'     LM is the linear model regressing the exposure and covariates on the continuous mediator \cr
 #'     MZIP is the results of regressing the exposure, covariates, and mediator on the outcome using the MZIP model \cr
@@ -1716,24 +1997,38 @@ binoutzimedint=function(outcome,mediator,exposure,confounder=NULL,C=NULL,n=1000,
 #'     #Example using delta method
 #'     ziout=zioutlmmed(outcome=mzipmed_data$ziY1,mediator=mzipmed_data$lmM,
 #'                  exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-#'                  mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0)
+#'                  mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,
+#'                  zioff=NULL)
 #'
 #'    #Example using boostrapping, 10 iterations used for succinctness
 #'    ziout2=zioutlmmed(outcome=mzipmed_data$ziY1,mediator=mzipmed_data$lmM,
 #'                  exposure=mzipmed_data$X, confounder=cbind(mzipmed_data$C1,
-#'                  mzipmed_data$C2),error="Boot",n=10)
+#'                  mzipmed_data$C2),error="Boot",n=10,zioff=NULL)
 #' @export
 
-zioutlmmed=function(outcome,mediator,exposure,confounder=NULL,X=1,Xstar=0,error='Delta',n=1000,robust=FALSE){
+zioutlmmed=function(outcome,mediator,exposure,confounder=NULL,X=1,Xstar=0,error='Delta',n=1000,robust=FALSE,zioff=NULL){
   lmout=data.frame(mediator)
-  if (is.null(confounder)){
-    lmpred=data.frame(exposure)
-    outreg=mzip(y=outcome,pred=cbind(exposure,mediator),print=F)
-    mzipdata=data.frame(outcome,exposure,mediator)
-  } else{
-    lmpred=data.frame(exposure,confounder)
-    outreg=mzip(y=outcome,pred=cbind(exposure,mediator,confounder),print=F)
-    mzipdata=data.frame(outcome,exposure,mediator,confounder)
+
+  if (is.null(zioff)){
+    if (is.null(confounder)){
+      lmpred=data.frame(exposure)
+      outreg=mzip(y=outcome,pred=cbind(exposure,mediator),print=F)
+      mzipdata=data.frame(outcome,exposure,mediator)
+    } else{
+      lmpred=data.frame(exposure,confounder)
+      outreg=mzip(y=outcome,pred=cbind(exposure,mediator,confounder),print=F)
+      mzipdata=data.frame(outcome,exposure,mediator,confounder)
+    }
+  } else {
+    if (is.null(confounder)){
+      lmpred=data.frame(exposure)
+      outreg=mzip(y=outcome,pred=cbind(exposure,mediator),print=F,offset=zioff)
+      mzipdata=data.frame(outcome,exposure,mediator,zioff)
+    } else{
+      lmpred=data.frame(exposure,confounder)
+      outreg=mzip(y=outcome,pred=cbind(exposure,mediator,confounder),print=F,offset=zioff)
+      mzipdata=data.frame(outcome,exposure,mediator,confounder,zioff)
+    }
   }
   lmdata=data.frame(lmout,lmpred)
 
@@ -1742,7 +2037,12 @@ zioutlmmed=function(outcome,mediator,exposure,confounder=NULL,X=1,Xstar=0,error=
 
   #lm part of stats package
   medreg=stats::lm(f,data=lmdata)
-  m=ncol(mzipdata)
+
+  if (is.null(zioff)){
+    m=ncol(mzipdata)
+  } else{
+    m=ncol(mzipdata)-1
+  }
 
 
   #Risk Ratio Direct Effect
@@ -1823,11 +2123,21 @@ zioutlmmed=function(outcome,mediator,exposure,confounder=NULL,X=1,Xstar=0,error=
     for (i in 1:n){
       datab[[i]]=sample(1:nrow(mzipdata),replace=T)
       datab2[[i]]=mzipdata[datab[[i]],]
-      if (is.null(confounder)){
-        outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]]),print=F)
+
+      if (is.null(zioff)){
+        if (is.null(confounder)){
+          outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]]),print=F)
+        } else{
+          confb[[i]]=data.matrix(datab2[[i]][c(4:m)])
+          outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]],confb[[i]]),print=F)
+        }
       } else{
-        confb[[i]]=data.matrix(datab2[[i]][c(4:m)])
-        outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]],confb[[i]]),print=F)
+        if (is.null(confounder)){
+          outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]]),print=F,offset=datab2[[i]][["zioff"]])
+        } else{
+          confb[[i]]=data.matrix(datab2[[i]][c(4:m)])
+          outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]],confb[[i]]),print=F,offset=datab2[[i]][["zioff"]])
+        }
       }
 
       medregb[[i]]=stats::lm(f,data=datab2[[i]])
@@ -1887,6 +2197,7 @@ zioutlmmed=function(outcome,mediator,exposure,confounder=NULL,X=1,Xstar=0,error=
 #' @param M is a fixed value for the mediator, M. If M is not specified, M will be set to its mean value
 #' @param error ='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method
 #' @param robust indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.
+#' @param zioff (optional) use to specify an offset variable within the MZIP outcome model.
 #' @return The function will return a list of 34 elements.
 #'     MZIP is the results of regressing the mediator+exposure+confounder on the outcome using MZIP. To assess interaction effect individually look in the glm statement at the 4th parameter estimate \cr
 #'     LM is the results of regressing the exposure and confounders on the mediator using linear regression \cr
@@ -1925,21 +2236,36 @@ zioutlmmed=function(outcome,mediator,exposure,confounder=NULL,X=1,Xstar=0,error=
 #' @examples
 #' zimout=zioutlmmedint(outcome=mzipmed_data$ziY1,mediator=mzipmed_data$lmM,
 #'              exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-#'              mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,M=NULL,C=NULL)
+#'              mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,M=NULL,C=NULL,
+#'              zioff=NULL)
 #' @export
 
-zioutlmmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X=1,Xstar=0,C=NULL,error='Delta',robust=FALSE){
+zioutlmmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X=1,Xstar=0,C=NULL,error='Delta',robust=FALSE,zioff=NULL){
   interaction=mediator*exposure
   lmout=data.frame(mediator)
-  if (is.null(confounder)){
-    lmpred=data.frame(exposure)
-    outreg=mzip(y=outcome,pred=cbind(exposure,mediator,interaction),print=F)
-    mzipdata=data.frame(outcome,exposure,mediator,interaction)
-  } else{
-    lmpred=data.frame(exposure,confounder)
-    outreg=mzip(y=outcome,pred=cbind(exposure,mediator,interaction,confounder),print=F)
-    mzipdata=data.frame(outcome,exposure,mediator,interaction,confounder)
+
+  if(is.null(zioff)){
+    if (is.null(confounder)){
+      lmpred=data.frame(exposure)
+      outreg=mzip(y=outcome,pred=cbind(exposure,mediator,interaction),print=F)
+      mzipdata=data.frame(outcome,exposure,mediator,interaction)
+    } else{
+      lmpred=data.frame(exposure,confounder)
+      outreg=mzip(y=outcome,pred=cbind(exposure,mediator,interaction,confounder),print=F)
+      mzipdata=data.frame(outcome,exposure,mediator,interaction,confounder)
+    }
+  } else {
+    if (is.null(confounder)){
+      lmpred=data.frame(exposure)
+      outreg=mzip(y=outcome,pred=cbind(exposure,mediator,interaction),print=F,offset=zioff)
+      mzipdata=data.frame(outcome,exposure,mediator,interaction,zioff)
+    } else{
+      lmpred=data.frame(exposure,confounder)
+      outreg=mzip(y=outcome,pred=cbind(exposure,mediator,interaction,confounder),print=F,offset=zioff)
+      mzipdata=data.frame(outcome,exposure,mediator,interaction,confounder,zioff)
+    }
   }
+
   lmdata=data.frame(lmout,lmpred)
 
 
@@ -1947,6 +2273,12 @@ zioutlmmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X
 
   medreg=stats::lm(f,data=lmdata)
   r=ncol(lmdata)
+
+  if (is.null(zioff)){
+    m=ncol(mzipdata)
+  } else{
+    m=ncol(mzipdata)-1
+  }
 
   if (!is.null(confounder)){
     if (is.null(C)){
@@ -2112,7 +2444,7 @@ zioutlmmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X
     if (robust){
       MZIPCov=outreg$RobAlphaCov
     } else {
-    MZIPCov=outreg$AlphaCov
+      MZIPCov=outreg$AlphaCov
     }
 
     nlm=nrow(lmCov)
@@ -2207,11 +2539,21 @@ zioutlmmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X
     for (i in 1:n){
       datab[[i]]=sample(1:nrow(mzipdata),replace=T)
       datab2[[i]]=mzipdata[datab[[i]],]
-      if (is.null(confounder)){
-        outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]],datab2[[i]][["interaction"]]),print=F)
+
+      if (is.null(zioff)){
+        if (is.null(confounder)){
+          outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]],datab2[[i]][["interaction"]]),print=F)
+        } else{
+          confb[[i]]=data.matrix(datab2[[i]][c(5:m)])
+          outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]],datab2[[i]][["interaction"]],confb[[i]]),print=F)
+        }
       } else{
-        confb[[i]]=data.matrix(datab2[[i]][c(5:r)])
-        outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]],datab2[[i]][["interaction"]],confb[[i]]),print=F)
+        if (is.null(confounder)){
+          outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]],datab2[[i]][["interaction"]]),print=F,offset=datab2[[i]][["zioff"]])
+        } else{
+          confb[[i]]=data.matrix(datab2[[i]][c(5:m)])
+          outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]],datab2[[i]][["interaction"]],confb[[i]]),print=F,offset=datab2[[i]][["zioff"]])
+        }
       }
 
       medregb[[i]]=stats::lm(f,data=datab2[[i]])
@@ -2311,7 +2653,7 @@ zioutlmmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X
   print(outprint)
 
   return(output)
-  }
+}
 
 
 
@@ -2325,7 +2667,8 @@ zioutlmmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X
 #' binary mediators using a logistic regression mediator model. Standard Errors for
 #' direct and indirect effects are computed using delta method or bootstrapping. Note: This function
 #' assumes that the outcome is continuous and all exposure, mediator, outcome, and confounder variables
-#' have the same sample size. Binary variables must be dummy coded prior.
+#' have the same sample size. Binary variables must be dummy coded prior. See vignette for
+#' information on how to use offset command `zioff`.
 #' @param outcome is the zero-inflated count outcome variable
 #' @param mediator is the binary mediator variable, currently only 1 mediator variable is allowed
 #' @param exposure is the primary exposure being considered, only 1 is allowed
@@ -2336,6 +2679,7 @@ zioutlmmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X
 #' @param n is the number of repetition if bootstrapped errors are used. Default is 1000
 #' @param error ='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method
 #' @param robust indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.
+#' @param zioff (optional) use to specify an offset variable within the MZIP outcome model.
 #' @return The function will return a list of 12 elements.
 #'     GLM is the logistic model regressing the exposure and covariates on the continuous mediator \cr
 #'     MZIP is the results of regressing the exposure, covariates, and mediator on the outcome using the MZIP model \cr
@@ -2353,26 +2697,41 @@ zioutlmmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X
 #'     #Example using delta method
 #'     ziout=zioutbinmed(outcome=mzipmed_data$ziY2,mediator=mzipmed_data$binM,
 #'                    exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-#'                    mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0)
+#'                    mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,zioff=NULL)
 #' \dontrun{
 #'     #Example using bootstrapping with 10 iterations
 #'     ziout2=zioutbinmed(outcome=mzipmed_data$ziY2,mediator=mzipmed_data$binM,
 #'                    exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-#'                    mzipmed_data$C2),error="Boot",n=10,C=c(0,0.5))
+#'                    mzipmed_data$C2),error="Boot",n=10,C=c(0,0.5),zioff=NULL)
 #'    }
 #' @export
 
-zioutbinmed=function(outcome,mediator,exposure,confounder=NULL,n=1000,X=1,Xstar=0,C=NULL,error='Delta',robust=FALSE){
+zioutbinmed=function(outcome,mediator,exposure,confounder=NULL,n=1000,X=1,Xstar=0,C=NULL,error='Delta',robust=FALSE,zioff=NULL){
   glmout=data.frame(mediator)
-  if (is.null(confounder)){
-    glmpred=data.frame(exposure)
-    outreg=mzip(y=outcome,pred=cbind(exposure,mediator),print=F)
-    mzipdata=data.frame(outcome,exposure,mediator)
-  } else{
-    glmpred=data.frame(exposure,confounder)
-    outreg=mzip(y=outcome,pred=cbind(exposure,mediator,confounder),print=F)
-    mzipdata=data.frame(outcome,exposure,mediator,confounder)
+
+  if (is.null(zioff)){
+    if (is.null(confounder)){
+      glmpred=data.frame(exposure)
+      outreg=mzip(y=outcome,pred=cbind(exposure,mediator),print=F)
+      mzipdata=data.frame(outcome,exposure,mediator)
+    } else{
+      glmpred=data.frame(exposure,confounder)
+      outreg=mzip(y=outcome,pred=cbind(exposure,mediator,confounder),print=F)
+      mzipdata=data.frame(outcome,exposure,mediator,confounder)
+    }
+  } else {
+    if (is.null(confounder)){
+      glmpred=data.frame(exposure)
+      outreg=mzip(y=outcome,pred=cbind(exposure,mediator),print=F,offset=zioff)
+      mzipdata=data.frame(outcome,exposure,mediator,zioff)
+    } else{
+      glmpred=data.frame(exposure,confounder)
+      outreg=mzip(y=outcome,pred=cbind(exposure,mediator,confounder),print=F,offset=zioff)
+      mzipdata=data.frame(outcome,exposure,mediator,confounder,zioff)
+    }
   }
+
+
   glmdata=data.frame(glmout,glmpred)
   r=ncol(glmdata)
 
@@ -2381,7 +2740,11 @@ zioutbinmed=function(outcome,mediator,exposure,confounder=NULL,n=1000,X=1,Xstar=
 
   #lm part of stats package
   medreg=stats::glm(f,data=glmdata,family=stats::binomial)
-  m=ncol(mzipdata)
+  if (is.null(zioff)){
+    m=ncol(mzipdata)
+  } else{
+    m=ncol(mzipdata)-1
+  }
 
   if (!is.null(confounder)){
     if (is.null(C)){
@@ -2491,11 +2854,21 @@ zioutbinmed=function(outcome,mediator,exposure,confounder=NULL,n=1000,X=1,Xstar=
     for (i in 1:n){
       datab[[i]]=sample(1:nrow(mzipdata),replace=T)
       datab2[[i]]=mzipdata[datab[[i]],]
-      if (is.null(confounder)){
-        outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]]),print=F)
+
+      if (is.null(zioff)){
+        if (is.null(confounder)){
+          outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]]),print=F)
+        } else{
+          confb[[i]]=data.matrix(datab2[[i]][c(4:m)])
+          outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]],confb[[i]]),print=F)
+        }
       } else{
-        confb[[i]]=data.matrix(datab2[[i]][c(4:m)])
-        outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]],confb[[i]]),print=F)
+        if (is.null(confounder)){
+          outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]]),print=F,offset=datab2[[i]][["zioff"]])
+        } else{
+          confb[[i]]=data.matrix(datab2[[i]][c(4:m)])
+          outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]],confb[[i]]),print=F,offset=datab2[[i]][["zioff"]])
+        }
       }
 
       medregb[[i]]=stats::glm(f,data=datab2[[i]],family=stats::binomial)
@@ -2569,6 +2942,7 @@ zioutbinmed=function(outcome,mediator,exposure,confounder=NULL,n=1000,X=1,Xstar=
 #' @param M is a fixed value for the mediator, M. If M is not specified, M will be set to its mean value
 #' @param error ='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method
 #' @param robust indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.
+#' @param zioff (optional) use to specify an offset variable within the MZIP outcome model.
 #' @return The function will return a list of 34 elements.
 #'     MZIP is the results of regressing the mediator+exposure+confounder on the outcome using MZIP. To assess interaction effect individually look in the glm statement at the 4th parameter estimate \cr
 #'     GLM is the results of regressing the exposure and confounders on the mediator using logistic regression \cr
@@ -2607,23 +2981,38 @@ zioutbinmed=function(outcome,mediator,exposure,confounder=NULL,n=1000,X=1,Xstar=
 #' @examples
 #'     zimout=zioutbinmedint(outcome=mzipmed_data$ziY2,mediator=mzipmed_data$binM,
 #'                    exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-#'                    mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,M=NULL,C=NULL)
+#'                    mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,M=NULL,C=NULL,
+#'                    zioff=NULL)
 #' @export
 
-zioutbinmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X=1,Xstar=0,C=NULL,error='Delta',robust=FALSE){
+zioutbinmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,X=1,Xstar=0,C=NULL,error='Delta',robust=FALSE,zioff=NULL){
   #lm,quantile,as.formula in Stats
   #colSds in matrixStats
   interaction=mediator*exposure
   glmout=data.frame(mediator)
-  if (is.null(confounder)){
-    glmpred=data.frame(exposure)
-    outreg=mzip(y=outcome,pred=cbind(exposure,mediator,interaction),print=F)
-    mzipdata=data.frame(outcome,exposure,mediator,interaction)
-  } else{
-    glmpred=data.frame(exposure,confounder)
-    outreg=mzip(y=outcome,pred=cbind(exposure,mediator,interaction,confounder),print=F)
-    mzipdata=data.frame(outcome,exposure,mediator,interaction,confounder)
+
+  if(is.null(zioff)){
+    if (is.null(confounder)){
+      glmpred=data.frame(exposure)
+      outreg=mzip(y=outcome,pred=cbind(exposure,mediator,interaction),print=F)
+      mzipdata=data.frame(outcome,exposure,mediator,interaction)
+    } else{
+      glmpred=data.frame(exposure,confounder)
+      outreg=mzip(y=outcome,pred=cbind(exposure,mediator,interaction,confounder),print=F)
+      mzipdata=data.frame(outcome,exposure,mediator,interaction,confounder)
+    }
+  } else {
+    if (is.null(confounder)){
+      glmpred=data.frame(exposure)
+      outreg=mzip(y=outcome,pred=cbind(exposure,mediator,interaction),print=F,offset=zioff)
+      mzipdata=data.frame(outcome,exposure,mediator,interaction,zioff)
+    } else{
+      glmpred=data.frame(exposure,confounder)
+      outreg=mzip(y=outcome,pred=cbind(exposure,mediator,interaction,confounder),print=F,offset=zioff)
+      mzipdata=data.frame(outcome,exposure,mediator,interaction,confounder,zioff)
+    }
   }
+
   glmdata=data.frame(glmout,glmpred)
 
 
@@ -2631,6 +3020,12 @@ zioutbinmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,
 
   medreg=stats::glm(f,data=glmdata,family=stats::binomial)
   r=ncol(glmdata)
+
+  if (is.null(zioff)){
+    m=ncol(mzipdata)
+  } else{
+    m=ncol(mzipdata)-1
+  }
 
   if (!is.null(confounder)){
     if (is.null(C)){
@@ -2972,11 +3367,21 @@ zioutbinmedint=function(outcome,mediator,exposure,confounder=NULL,n=1000,M=NULL,
     for (i in 1:n){
       datab[[i]]=sample(1:nrow(mzipdata),replace=T)
       datab2[[i]]=mzipdata[datab[[i]],]
-      if (is.null(confounder)){
-        outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]],datab2[[i]][["interaction"]]),print=F)
+
+      if (is.null(zioff)){
+        if (is.null(confounder)){
+          outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]],datab2[[i]][["interaction"]]),print=F)
+        } else{
+          confb[[i]]=data.matrix(datab2[[i]][c(5:m)])
+          outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]],datab2[[i]][["interaction"]],confb[[i]]),print=F)
+        }
       } else{
-        confb[[i]]=data.matrix(datab2[[i]][c(5:r)])
-        outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]],datab2[[i]][["interaction"]],confb[[i]]),print=F)
+        if (is.null(confounder)){
+          outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]],datab2[[i]][["interaction"]]),print=F,offset=datab2[[i]][["zioff"]])
+        } else{
+          confb[[i]]=data.matrix(datab2[[i]][c(5:m)])
+          outregb[[i]]=mzip(y=datab2[[i]][["outcome"]],pred=cbind(datab2[[i]][["exposure"]],datab2[[i]][["mediator"]],datab2[[i]][["interaction"]],confb[[i]]),print=F,offset=datab2[[i]][["zioff"]])
+        }
       }
 
       medregb[[i]]=stats::glm(f,data=datab2[[i]],family=stats::binomial)

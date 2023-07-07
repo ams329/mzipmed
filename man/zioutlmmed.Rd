@@ -13,7 +13,8 @@ zioutlmmed(
   Xstar = 0,
   error = "Delta",
   n = 1000,
-  robust = FALSE
+  robust = FALSE,
+  zioff = NULL
 )
 }
 \arguments{
@@ -34,20 +35,22 @@ zioutlmmed(
 \item{n}{is the number of repetition if bootstrapped errors are used. Default is 1000}
 
 \item{robust}{indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.}
+
+\item{zioff}{(optional) use to specify an offset variable within the MZIP outcome model.}
 }
 \value{
 The function will return a list of 12 elements.
 LM is the linear model regressing the exposure and covariates on the continuous mediator \cr
 MZIP is the results of regressing the exposure, covariates, and mediator on the outcome using the MZIP model \cr
-RRNDE is the risk ratio of the direct effect \cr
-RRNIE is the risk ratio of the indirect effect. \cr
-logRRNDEse is the standard error for the log risk ratio of NDE \cr
-RRNDEci is the 95\% confidence interval for the direct effect risk ratio\cr
-logRRNIEse is the standard error for  the indirect effect log risk ratio \cr
-RRNIEci is the 95\% confidence interval for the indirect effect risk ratio \cr
-RRTE is the total effect risk ratio \cr
-logRRTEse is the standard error for the total effect log risk ratio\cr
-RRTECI is the confidence interval for the total effect risk ratio \cr
+RRNDE is the incidence rate ratio of the direct effect \cr
+RRNIE is the incidence rate ratio of the indirect effect. \cr
+logRRNDEse is the standard error for the log rate ratio of NDE \cr
+RRNDEci is the 95\% confidence interval for the direct effect rate ratio\cr
+logRRNIEse is the standard error for  the indirect effect log rate ratio \cr
+RRNIEci is the 95\% confidence interval for the indirect effect rate ratio \cr
+RRTE is the total effect rate ratio \cr
+logRRTEse is the standard error for the total effect log rate ratio\cr
+RRTECI is the confidence interval for the total effect rate ratio \cr
 PM is the proportion mediated
 }
 \description{
@@ -56,16 +59,18 @@ as proposed by Vanderweele when the outcome is a Zero-Inflated count variable fo
 continuous mediators. Standard Errors for
 direct and indirect effects are computed using delta method or bootstrapping. Note: This function
 assumes that the outcome is continuous and all exposure, mediator, outcome, and confounder variables
-have the same sample size. Binary variables must be dummy coded prior.
+have the same sample size. Binary variables must be dummy coded prior. See vignette for information
+on use of the offset.
 }
 \examples{
     #Example using delta method
     ziout=zioutlmmed(outcome=mzipmed_data$ziY1,mediator=mzipmed_data$lmM,
                  exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-                 mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0)
+                 mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,
+                 zioff=NULL)
 
    #Example using boostrapping, 10 iterations used for succinctness
    ziout2=zioutlmmed(outcome=mzipmed_data$ziY1,mediator=mzipmed_data$lmM,
                  exposure=mzipmed_data$X, confounder=cbind(mzipmed_data$C1,
-                 mzipmed_data$C2),error="Boot",n=10)
+                 mzipmed_data$C2),error="Boot",n=10,zioff=NULL)
 }

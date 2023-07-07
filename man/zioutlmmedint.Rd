@@ -15,7 +15,8 @@ zioutlmmedint(
   Xstar = 0,
   C = NULL,
   error = "Delta",
-  robust = FALSE
+  robust = FALSE,
+  zioff = NULL
 )
 }
 \arguments{
@@ -40,33 +41,35 @@ zioutlmmedint(
 \item{error}{='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method}
 
 \item{robust}{indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.}
+
+\item{zioff}{(optional) use to specify an offset variable within the MZIP outcome model.}
 }
 \value{
 The function will return a list of 34 elements.
 MZIP is the results of regressing the mediator+exposure+confounder on the outcome using MZIP. To assess interaction effect individually look in the glm statement at the 4th parameter estimate \cr
 LM is the results of regressing the exposure and confounders on the mediator using linear regression \cr
-RRCDE is the controlled direct effect risk ratio \cr
-RRNDE is the natural direct effect risk ratio \cr
-RRNIE is the indirect effect risk ratio. \cr
+RRCDE is the controlled direct effect incidence rate ratio \cr
+RRNDE is the natural direct effect incidence rate ratio \cr
+RRNIE is the indirect effect incidence rate ratio. \cr
 PM is the proportion mediated\cr
-logRRCDEse is the standard error for the  controlled direct effect log risk ratio \cr
-RRCDEci is the 95\% confidence interval for the controlled direct effect risk raito\cr
-logRRNDEse is the standard error for the  natural direct effect log risk ratio \cr
-RRNDEci is the 95\% confidence interval for the natural direct effect risk ratio\cr
-logRRNIEse is the standard error for  the indirect effect log risk ratio \cr
-RRNIEci is the 95\% confidence interval for the indirect effect risk ratio\cr
-Intref is the Interactive Reference effect (not a risk ratio) \cr
+logRRCDEse is the standard error for the  controlled direct effect log rate ratio \cr
+RRCDEci is the 95\% confidence interval for the controlled direct effect rate raito\cr
+logRRNDEse is the standard error for the  natural direct effect log rate ratio \cr
+RRNDEci is the 95\% confidence interval for the natural direct effect rate ratio\cr
+logRRNIEse is the standard error for  the indirect effect log rate ratio \cr
+RRNIEci is the 95\% confidence interval for the indirect effect rate ratio\cr
+Intref is the Interactive Reference effect (not a ratio) \cr
 Intrefse is the standard error for Intref \cr
 IntrefCI is the CI for Intref \cr
-RRPIE is the pure indirect effect risk ratio \cr
-logRRPIEse is the standard error of PIE log risk ratio \cr
-RRPIECI is the CI for PIE risk ratio \cr
-Intmed is the interactive mediation effect (not a risk ratio) \cr
+RRPIE is the pure indirect effect incidence rate ratio \cr
+logRRPIEse is the standard error of PIE log rate ratio \cr
+RRPIECI is the CI for PIE rate ratio \cr
+Intmed is the interactive mediation effect (not a ratio) \cr
 Intmedse is the error associated with Intmed \cr
 IntmedCI is the CI for Intmed \cr
-RRTE is the total effect risk ratio \cr
-logRRTEse is the error of the total effect log risk ratio \cr
-RRTECI is the CI for the total effect risk ratio\cr
+RRTE is the total effect incidence rate ratio \cr
+logRRTEse is the error of the total effect log rate ratio \cr
+RRTECI is the CI for the total effect rate ratio\cr
 Int is the overall additive interaction effect \cr
 Intse is the standard error for the additive interaction \cr
 IntCI is the confidence interval for the interaction effect \cr
@@ -85,5 +88,6 @@ This function will do the same thing as the zioutlmmed function, but includes an
 \examples{
 zimout=zioutlmmedint(outcome=mzipmed_data$ziY1,mediator=mzipmed_data$lmM,
              exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-             mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,M=NULL,C=NULL)
+             mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,M=NULL,C=NULL,
+             zioff=NULL)
 }

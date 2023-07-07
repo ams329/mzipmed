@@ -14,7 +14,8 @@ lmoutzimed(
   X = 1,
   Xstar = 0,
   error = "Delta",
-  robust = FALSE
+  robust = FALSE,
+  zioff = NULL
 )
 }
 \arguments{
@@ -37,6 +38,8 @@ lmoutzimed(
 \item{error}{='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method}
 
 \item{robust}{indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.}
+
+\item{zioff}{(optional) use to specify an offset variable within the MZIP mediator model. Note: Mediator/Offset is used in the outcome model}
 }
 \value{
 The function will return a list of 12 elements.
@@ -64,7 +67,7 @@ have the same sample size. Binary variables must be dummy coded prior.
     #Example with delta method
     zimed=lmoutzimed(outcome=mzipmed_data$lmY,mediator=mzipmed_data$ziM,
                  exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-                 mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0)
+                 mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,zioff=NULL)
 
     #Example using bootstrapping, 10 iterations used for succinctness
     zimed2=lmoutzimed(outcome=mzipmed_data$lmY,mediator=mzipmed_data$ziM,

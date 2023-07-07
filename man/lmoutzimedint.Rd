@@ -15,7 +15,9 @@ lmoutzimedint(
   Xstar = 0,
   M = NULL,
   error = "Delta",
-  robust = FALSE
+  robust = FALSE,
+  zioff = NULL,
+  OFF = NULL
 )
 }
 \arguments{
@@ -40,6 +42,10 @@ lmoutzimedint(
 \item{error}{='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method}
 
 \item{robust}{indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.}
+
+\item{zioff}{(optional) used to specify an offset variable within the MZIP mediator model. Note: Mediator/Offset is used in the outcome model}
+
+\item{OFF}{if an offset is specified a fixed value of the offset is required to compute CDE. By default it is the mean of the offset or 1 if no offset is specified.}
 }
 \value{
 The function will return a list of 30 elements.
@@ -82,5 +88,6 @@ This function will do the same thing as the lmoutzimed function, but includes an
    #This builds upon function without interaction
     zimmed=lmoutzimedint(outcome=mzipmed_data$lmY,mediator=mzipmed_data$ziM,
                   exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-                  mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,M=NULL,C=NULL)
+                  mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,M=NULL,
+                  C=NULL,zioff=NULL,OFF=NULL)
 }

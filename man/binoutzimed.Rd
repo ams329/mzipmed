@@ -14,7 +14,10 @@ binoutzimed(
   X = 1,
   Xstar = 0,
   error = "Delta",
-  robust = FALSE
+  robust = FALSE,
+  zioff = NULL,
+  rare = FALSE,
+  OFF = NULL
 )
 }
 \arguments{
@@ -37,6 +40,12 @@ binoutzimed(
 \item{error}{='Delta' for delta method standard errors and ='Boot' for bootstrap. Default is delta method}
 
 \item{robust}{indicates if a robust covariance matrix should be used for MZIP in delta method derivations. Default is FALSE.}
+
+\item{zioff}{(optional) use to specify an offset variable within the MZIP mediator model. Note: Mediator/Offset is used in the outcome model}
+
+\item{rare}{set to TRUE of the outcome is rare and a logistic-regression should be used instead. Default is FALSE using robust Poisson model}
+
+\item{OFF}{is an offset is specified a fixed value of the offset variable is required for computation of effects. By default the mean is used.}
 }
 \value{
 The function will return a list of 12 elements.
@@ -62,13 +71,15 @@ assumes that the outcome is continuous and all exposure, mediator, outcome, and 
 have the same sample size. Binary variables must be dummy coded prior.
 A Poisson regression with robust standard errors were used to obtain direct and indirect
 effect estimates on a risk ratio scale because odds ratios are a non-collapsible measure which
-can cause issues in a mediation framework (see Vanderweele 2016).
+can cause issues in a mediation framework (see Vanderweele 2016). A logistic-regression can be
+specified for rare outcomes.
 }
 \examples{
     #Example with delta method
     zimed=binoutzimed(outcome=mzipmed_data$binY,mediator=mzipmed_data$ziM,
                      exposure=mzipmed_data$X,confounder=cbind(mzipmed_data$C1,
-                     mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0)
+                     mzipmed_data$C2),error="Delta",robust=FALSE,X=1,Xstar=0,
+                     zioff=NULL,OFF=NULL,rare=FALSE)
 
     #Example using bootstrapping, 10 iterations are used for succinctness
     zimed2=binoutzimed(outcome=mzipmed_data$binY,mediator=mzipmed_data$ziM,
